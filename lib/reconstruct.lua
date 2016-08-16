@@ -153,6 +153,8 @@ function reconstruct.image_rgb(model, x, offset, block_size, batch_size)
 
    return output
 end
+
+
 function reconstruct.scale_rgb(model, scale, x, offset, block_size, batch_size)
    block_size = block_size or 128
    if not reconstruct.has_resize(model) then

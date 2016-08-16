@@ -55,65 +55,74 @@ function image_loader.encode_png(rgb, options)
    end
    return im:depth(options.depth):format("PNG"):toString()
 end
+
+
+
 function image_loader.save_png(filename, rgb, options)
-   local blob = image_loader.encode_png(rgb, options)
-   local fp = io.open(filename, "wb")
-   if not fp then
-      error("IO error: " .. filename)
-   end
-   fp:write(blob)
-   fp:close()
-   return true
+  local blob = image_loader.encode_png(rgb, options)
+  local fp = io.open(filename, "wb")
+  if not fp then
+    error("IO error: " .. filename)
+  end
+  fp:write(blob)
+  fp:close()
+  return true
 end
+
+
+
 function image_loader.decode_float(blob)
-   local load_image = function()
-      local meta = {}
-      local im = gm.Image()
-      local gamma_lcd = 0.454545
-      
-      im:fromBlob(blob, #blob)
-      
-      if im:colorspace() == "CMYK" then
-	 im:colorspace("RGB")
-      end
-      if gamma ~= 0 and math.floor(im:gamma() * 1000000) / 1000000 ~= gamma_lcd then
-	 meta.gamma = im:gamma()
-      end
-      local image_type = im:type()
-      if image_type == "Grayscale" or image_type == "GrayscaleMatte" then
-	 meta.grayscale = true
-      end
-      if image_type == "TrueColorMatte" or image_type == "GrayscaleMatte" then
-	 -- split alpha channel
-	 im = im:toTensor('float', 'RGBA', 'DHW')
-	 meta.alpha = im[4]:reshape(1, im:size(2), im:size(3))
-	 -- drop full transparent background
-	 local mask = torch.le(meta.alpha, 0.0)
-	 im[1][mask] = background_color
-	 im[2][mask] = background_color
-	 im[3][mask] = background_color
-	 local new_im = torch.FloatTensor(3, im:size(2), im:size(3))
-	 new_im[1]:copy(im[1])
-	 new_im[2]:copy(im[2])
-	 new_im[3]:copy(im[3])
-	 im = new_im
-      else
-	 im = im:toTensor('float', 'RGB', 'DHW')
-      end
-      meta.blob = blob
-      return {im, meta}
-   end
-   local state, ret = pcall(load_image)
-   if state then
-      return ret[1], ret[2]
-   else
-      return nil, nil
-   end
+  local load_image = function()
+    local meta = {}
+    local im = gm.Image()
+    local gamma_lcd = 0.454545
+
+    im:fromBlob(blob, #blob)
+
+    if im:colorspace() == "CMYK" then
+      im:colorspace("RGB")
+    end
+    if gamma ~= 0 and math.floor(im:gamma() * 1000000) / 1000000 ~= gamma_lcd then
+      meta.gamma = im:gamma()
+    end
+    local image_type = im:type()
+    if image_type == "Grayscale" or image_type == "GrayscaleMatte" then
+      meta.grayscale = true
+    end
+    if image_type == "TrueColorMatte" or image_type == "GrayscaleMatte" then
+      -- split alpha channel
+      im = im:toTensor('float', 'RGBA', 'DHW')
+      meta.alpha = im[4]:reshape(1, im:size(2), im:size(3))
+      -- drop full transparent background
+	    local mask = torch.le(meta.alpha, 0.0)
+      im[1][mask] = background_color
+      im[2][mask] = background_color
+      im[3][mask] = background_color
+      local new_im = torch.FloatTensor(3, im:size(2), im:size(3))
+      new_im[1]:copy(im[1])
+      new_im[2]:copy(im[2])
+      new_im[3]:copy(im[3])
+      im = new_im
+    else
+      im = im:toTensor('float', 'RGB', 'DHW')
+    end
+    meta.blob = blob
+    return {im, meta}
+  end
+  local state, ret = pcall(load_image)
+  if state then
+    return ret[1], ret[2]
+  else
+    return nil, nil
+  end
 end
+
+
+
 function image_loader.decode_byte(blob)
    local im, meta
    im, meta = image_loader.decode_float(blob)
-   
+
    if im then
       im = iproc.float2byte(im)
       -- hmm, alpha does not convert here
@@ -122,15 +131,20 @@ function image_loader.decode_byte(blob)
       return nil, nil
    end
 end
+
+
 function image_loader.load_float(file)
-   local fp = io.open(file, "rb")
-   if not fp then
-      error(file .. ": failed to load image")
-   end
-   local buff = fp:read("*a")
-   fp:close()
-   return image_loader.decode_float(buff)
+  local fp = io.open(file, "rb")
+  if not fp then
+    error(file .. ": failed to load image")
+  end
+  local buff = fp:read("*a")
+  fp:close()
+  return image_loader.decode_float(buff)
+  ------ function image_loader.decode_float(blob) in this file
 end
+
+
 function image_loader.load_byte(file)
    local fp = io.open(file, "rb")
    if not fp then

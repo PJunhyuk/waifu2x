@@ -67,8 +67,11 @@ local function convert_image(opt)
   else
     ------ used
     ------ local reconstruct = require 'reconstruct'
+    ------ refer to lib/reconstruct.lua
     scale_f = reconstruct.scale
+    ------ function scale_f is in lib/reconstruct.lua
     image_f = reconstruct.image
+    ------ function image_f is in lib/reconstruct.lua
   end
 
   opt.o = format_output(opt, opt.i)
@@ -84,6 +87,8 @@ local function convert_image(opt)
     end
     local t = sys.clock()
     new_x = image_f(model, x, opt.crop_size, opt.batch_size)
+    ------ image_f : reconstruct.image
+    ------ function reconstruct.image(model, x, block_size)
     new_x = alpha_util.composite(new_x, alpha)
     ------ local alpha = meta.alpha
     ------ meta : images/miku_samll.png
@@ -98,6 +103,7 @@ local function convert_image(opt)
     ------ opt.scale : 2
     ------ model_path = path.join("models/my_model", "scale2.0x_model.t7")
     local model = w2nn.load_model(model_path, opt.force_cudnn)
+    ------ function w2nn.load_model(model_path, force_cudnn) in lib/w2nn.lua
     ------ opt.forcue_cudnn = 0
     if not model then
       ------ not used
@@ -107,12 +113,16 @@ local function convert_image(opt)
     ------ t = live time
     x = alpha_util.make_border(x, alpha, reconstruct.offset_size(model))
     ------ local alpha_util = require 'alpha_util'
+    ------ function alpha_util.make_border(rgb, alpha, offset) in lib/alpha_util.lua
     new_x = scale_f(model, opt.scale, x, opt.crop_size, opt.batch_size, opt.batch_size)
-    ------ new_x = scale_f(model, 2, 128, 1, 1)
+    ------ local scale_f = reconstruct.scale
+    ------ function reconstruct.scale(model, scale, x, block_size) in lib/reconstruct.lua
+    ------ new_x = scale_f(model, 2, x, 128, 1, 1)
     ------ opt.scale : 2
     ------ opt.crop_size : 128
     ------ opt.batch_size : 1
     new_x = alpha_util.composite(new_x, alpha, model)
+    ------ function alpha_util.composite(rgb, alpha, model2x) in lib/alpha_util.lua
     if not opt.q then
       ------ opt.q = 0(default) -> used
       print(opt.o .. ": " .. (sys.clock() - t) .. " sec")
@@ -176,6 +186,8 @@ local function convert_image(opt)
   end
 
   image_loader.save_png(opt.o, new_x, tablex.update({depth = opt.depth, inplace = true}, meta))
+  ------ opt.o : output.png
+  ------ new_x = alpha_util.composite(new_x, alpha, model)
 end
 
 
@@ -336,7 +348,7 @@ local function waifu2x()
   opt.model_path = path.join(opt.model_dir, string.format("%s_model.t7", opt.name))
   ------ opt.model_path = path.join("models/mymodel", "usr_model.t7")
   if string.len(opt.l) == 0 then
-    ------ string.len(opt.l) == 0, so go to conver_image
+    ------ string.len(opt.l) == 0, so go to local function convert_image(opt)
     convert_image(opt)
   else
     convert_frames(opt)
@@ -345,3 +357,4 @@ end
 
 
 waifu2x()
+------ run waifu2x function

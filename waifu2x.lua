@@ -43,6 +43,7 @@ end
 
 local function convert_image(opt)
   local x, meta = image_loader.load_float(opt.i)
+  ------ function image_loader.load_float(file) in lib/image_loader.lua
   ------ opt.i : images/miku_small.png
   ------ meta = images/miku_samll.png
 
@@ -77,6 +78,7 @@ local function convert_image(opt)
   opt.o = format_output(opt, opt.i)
   ------ opt.i : images/miku_small.png
   ------ opt.o : output.png
+  ------ local function format_output(opt, src, no) in this file
 
   if opt.m == "noise" then
     ------ opt.m : scale -> not used
@@ -87,11 +89,7 @@ local function convert_image(opt)
     end
     local t = sys.clock()
     new_x = image_f(model, x, opt.crop_size, opt.batch_size)
-    ------ image_f : reconstruct.image
-    ------ function reconstruct.image(model, x, block_size)
     new_x = alpha_util.composite(new_x, alpha)
-    ------ local alpha = meta.alpha
-    ------ meta : images/miku_samll.png
     if not opt.q then
       print(opt.o .. ": " .. (sys.clock() - t) .. " sec")
     end
@@ -102,13 +100,17 @@ local function convert_image(opt)
     ------ opt.model_dir : models/my_model
     ------ opt.scale : 2
     ------ model_path = path.join("models/my_model", "scale2.0x_model.t7")
+    ------ there is scale2.0x_model.t7 file in models/my_model
     local model = w2nn.load_model(model_path, opt.force_cudnn)
     ------ function w2nn.load_model(model_path, force_cudnn) in lib/w2nn.lua
-    ------ opt.forcue_cudnn = 0
+    ------ opt.force_cudnn = 0
+    ------ w2nn.load_model returns model
+
     if not model then
       ------ not used
       error("Load Error: " .. model_path)
     end
+
     local t = sys.clock()
     ------ t = live time
     x = alpha_util.make_border(x, alpha, reconstruct.offset_size(model))
@@ -188,6 +190,7 @@ local function convert_image(opt)
   image_loader.save_png(opt.o, new_x, tablex.update({depth = opt.depth, inplace = true}, meta))
   ------ opt.o : output.png
   ------ new_x = alpha_util.composite(new_x, alpha, model)
+  ------ function image_loader.save_png(filename, rgb, options) in lib/image_loader.lua
 end
 
 
@@ -323,7 +326,9 @@ local function waifu2x()
   cmd:option("-tta_level", 8, 'TTA level (2|4|8). A higher value makes better quality output but slow')
   cmd:option("-force_cudnn", 0, 'use cuDNN backend (0|1)')
   cmd:option("-q", 0, 'quiet (0|1)')
+
   local opt = cmd:parse(arg)
+
   if opt.method:len() > 0 then
     ------ opt.method.len() = 0 -> not used
     opt.m = opt.method
@@ -332,15 +337,18 @@ local function waifu2x()
     ------ opt.thread = -1(default) -> not used
     torch.setnumthreads(opt.thread)
   end
+
   if cudnn then
     cudnn.fastest = true
     if opt.l:len() > 0 then
       ------ opt.l:len() = 0(default) -> not used
       cudnn.benchmark = true -- find fastest algo
     else
+      ------ used
       cudnn.benchmark = false
     end
   end
+
   opt.force_cudnn = opt.force_cudnn == 1
   ------ opt.forcue_cudnn = 0(default) -> opt.force_cudnn = false
   opt.q = opt.q == 1

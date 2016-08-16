@@ -1,3 +1,6 @@
+---- sample input on cmd : ~waifu2x# th waifu2x.lua -model_dir models/my_model -m scale -scale 2 -i images/miku_small.png -o output.png
+------ means for sample
+
 require 'pl'
 local __FILE__ = (function() return string.gsub(debug.getinfo(2, 'S').source, "^@", "") end)()
 package.path = path.join(path.dirname(__FILE__), "lib", "?.lua;") .. package.path
@@ -40,13 +43,21 @@ end
 
 local function convert_image(opt)
   local x, meta = image_loader.load_float(opt.i)
+  ------ opt.i : images/miku_small.png
+  ------ meta = images/miku_samll.png
+
   if not x then
+    ------ not used
     error(string.format("failed to load image: %s", opt.i))
   end
+
   local alpha = meta.alpha
   local new_x = nil
   local scale_f, image_f
+
   if opt.tta == 1 then
+    ------ opt.tta = 0(default) -> not use TTA mode
+    ------ not used
     scale_f = function(model, scale, x, block_size, batch_size)
       return reconstruct.scale_tta(model, opt.tta_level, scale, x, block_size, batch_size)
     end
@@ -54,11 +65,18 @@ local function convert_image(opt)
       return reconstruct.image_tta(model, opt.tta_level, x, block_size, batch_size)
     end
   else
+    ------ used
+    ------ local reconstruct = require 'reconstruct'
     scale_f = reconstruct.scale
     image_f = reconstruct.image
   end
+
   opt.o = format_output(opt, opt.i)
+  ------ opt.i : images/miku_small.png
+  ------ opt.o : output.png
+
   if opt.m == "noise" then
+    ------ opt.m : scale -> not used
     local model_path = path.join(opt.model_dir, ("noise%d_model.t7"):format(opt.noise_level))
     local model = w2nn.load_model(model_path, opt.force_cudnn)
     if not model then
@@ -67,23 +85,43 @@ local function convert_image(opt)
     local t = sys.clock()
     new_x = image_f(model, x, opt.crop_size, opt.batch_size)
     new_x = alpha_util.composite(new_x, alpha)
+    ------ local alpha = meta.alpha
+    ------ meta : images/miku_samll.png
     if not opt.q then
       print(opt.o .. ": " .. (sys.clock() - t) .. " sec")
     end
+
   elseif opt.m == "scale" then
+    ------ opt.m : scale -> used
     local model_path = path.join(opt.model_dir, ("scale%.1fx_model.t7"):format(opt.scale))
+    ------ opt.model_dir : models/my_model
+    ------ opt.scale : 2
+    ------ model_path = path.join("models/my_model", "scale2.0x_model.t7")
     local model = w2nn.load_model(model_path, opt.force_cudnn)
+    ------ opt.forcue_cudnn = 0
     if not model then
+      ------ not used
       error("Load Error: " .. model_path)
     end
     local t = sys.clock()
+    ------ t = live time
     x = alpha_util.make_border(x, alpha, reconstruct.offset_size(model))
+    ------ local alpha_util = require 'alpha_util'
     new_x = scale_f(model, opt.scale, x, opt.crop_size, opt.batch_size, opt.batch_size)
+    ------ new_x = scale_f(model, 2, 128, 1, 1)
+    ------ opt.scale : 2
+    ------ opt.crop_size : 128
+    ------ opt.batch_size : 1
     new_x = alpha_util.composite(new_x, alpha, model)
     if not opt.q then
+      ------ opt.q = 0(default) -> used
       print(opt.o .. ": " .. (sys.clock() - t) .. " sec")
+      ------ print "output.png: 0.15733909606934 sec"
+      ------ opt.o : output.png
     end
+
   elseif opt.m == "noise_scale" then
+    ------ opt.m : scale -> not used
     local model_path = path.join(opt.model_dir, ("noise%d_scale%.1fx_model.t7"):format(opt.noise_level, opt.scale))
     if path.exists(model_path) then
       local scale_model_path = path.join(opt.model_dir, ("scale%.1fx_model.t7"):format(opt.scale))
@@ -114,6 +152,7 @@ local function convert_image(opt)
       end
     end
   elseif opt.m == "user" then
+    ------ opt.m : scale -> not used
     local model_path = opt.model_path
     local model = w2nn.load_model(model_path, opt.force_cudnn)
     if not model then
@@ -132,8 +171,10 @@ local function convert_image(opt)
       print(opt.o .. ": " .. (sys.clock() - t) .. " sec")
     end
   else
+    ------ opt.m : scale -> not used
     error("undefined method:" .. opt.method)
   end
+
   image_loader.save_png(opt.o, new_x, tablex.update({depth = opt.depth, inplace = true}, meta))
 end
 
@@ -248,13 +289,18 @@ local function waifu2x()
   cmd:text("waifu2x")
   cmd:text("Options:")
   cmd:option("-i", "images/miku_small.png", 'path to input image')
+  ------ -i : images/miku_small.png
   cmd:option("-l", "", 'path to image-list.txt')
   cmd:option("-scale", 2, 'scale factor')
+  ------ -scale : 2
   cmd:option("-o", "(auto)", 'path to output file')
+  ------ -o : output.png
   cmd:option("-depth", 8, 'bit-depth of the output image (8|16)')
   cmd:option("-model_dir", "./models/upconv_7/art", 'path to model directory')
+  ------ -model_dir : models/my_model
   cmd:option("-name", "user", 'model name for user method')
   cmd:option("-m", "noise_scale", 'method (noise|scale|noise_scale|user)')
+  ------ -m : scale
   cmd:option("-method", "", 'same as -m')
   cmd:option("-noise_level", 1, '(1|2|3)')
   cmd:option("-crop_size", 128, 'patch size per process')
@@ -267,23 +313,30 @@ local function waifu2x()
   cmd:option("-q", 0, 'quiet (0|1)')
   local opt = cmd:parse(arg)
   if opt.method:len() > 0 then
+    ------ opt.method.len() = 0 -> not used
     opt.m = opt.method
   end
   if opt.thread > 0 then
+    ------ opt.thread = -1(default) -> not used
     torch.setnumthreads(opt.thread)
   end
   if cudnn then
     cudnn.fastest = true
     if opt.l:len() > 0 then
+      ------ opt.l:len() = 0(default) -> not used
       cudnn.benchmark = true -- find fastest algo
     else
       cudnn.benchmark = false
     end
   end
   opt.force_cudnn = opt.force_cudnn == 1
+  ------ opt.forcue_cudnn = 0(default) -> opt.force_cudnn = false
   opt.q = opt.q == 1
+  ------ opt.q = 0(default) -> opt.q = false
   opt.model_path = path.join(opt.model_dir, string.format("%s_model.t7", opt.name))
+  ------ opt.model_path = path.join("models/mymodel", "usr_model.t7")
   if string.len(opt.l) == 0 then
+    ------ string.len(opt.l) == 0, so go to conver_image
     convert_image(opt)
   else
     convert_frames(opt)

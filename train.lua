@@ -284,6 +284,7 @@ local function remove_small_image(x)
     end
   end
   print(string.format("%d small images are removed", #x - #new_x))
+  ------ print "0 small images are removed"
   return new_x
 end
 
@@ -298,17 +299,27 @@ local function train()
   local hist_valid = {}
   local model
   if settings.resume:len() > 0 then
+    ------ on lib/settings.lua
+    ------ resume = ""(default) -> unused
     model = torch.load(settings.resume, "ascii")
   else
+    ------ used
     model = srcnn.create(settings.model, settings.backend, settings.color)
+    ------ function srcnn.create(model_name, backend, color) in lib/srcnn.lua
+    ------ settings.model = "upconv_7"
+    ------ settings.backend = "cunn"
+    ------ settings.color = "rgb"
   end
   local offset = reconstruct.offset_size(model)
   local pairwise_func = function(x, is_validation, n)
     return transformer(model, x, is_validation, n, offset)
+    ------ local function transformer(model, x, is_validation, n, offset) in this file
   end
   local criterion = create_criterion(model)
   local eval_metric = w2nn.ClippedMSECriterion(0, 1):cuda()
   local x = remove_small_image(torch.load(settings.images))
+  ------ local function remove_small_image(x) in this file
+  ------ print "0 small images are removed"
   local train_x, valid_x = split_data(x, math.max(math.floor(settings.validation_rate * #x), 1))
   local adam_config = {
     xLearningRate = settings.learning_rate,
@@ -323,6 +334,7 @@ local function train()
   end
   local best_score = 1000.0
   print("# make validation-set")
+  ------ print "# make validation-set"
   local valid_xy = make_validation_set(valid_x, pairwise_func,
     settings.validation_crops,
     settings.patches)
@@ -331,10 +343,13 @@ local function train()
   collectgarbage()
   model:cuda()
   print("load .. " .. #train_x)
+  ------ #train_x = 9500
+  ------ print "load .. 9500"
 
   local x = nil
   local y = torch.Tensor(settings.patches * #train_x,
     ch * (settings.crop_size - offset * 2) * (settings.crop_size - offset * 2)):zero()
+
   if reconstruct.has_resize(model) then
     x = torch.Tensor(settings.patches * #train_x,
       ch, settings.crop_size / settings.scale, settings.crop_size / settings.scale)
@@ -342,22 +357,27 @@ local function train()
     x = torch.Tensor(settings.patches * #train_x,
       ch, settings.crop_size, settings.crop_size)
   end
+
   local instance_loss = nil
+
   for epoch = 1, settings.epoch do
     model:training()
     print("# " .. epoch)
     if adam_config.learningRate then
       print("learning rate: " .. adam_config.learningRate)
+      ------ non-existent on # 1 / existent on # 2
+      ------ on # 2 -> print "learning rate: 0.00018317702227433"
     end
     print("## resampling")
+    ------ print "## resampling"
     if instance_loss then
+      ------ instance_loss = nil -> (maybe) not used
       -- active learning
       local oracle_k = math.min(x:size(1) * (settings.oracle_rate * (1 / (1 - settings.oracle_drop_rate))), x:size(1))
       local oracle_n = math.min(x:size(1) * settings.oracle_rate, x:size(1))
       if oracle_n > 0 then
         local oracle_x, oracle_y = get_oracle_data(x, y, instance_loss, oracle_k, oracle_n)
-        resampling(x:narrow(1, oracle_x:size(1) + 1, x:size(1)-oracle_x:size(1)),
-          y:narrow(1, oracle_x:size(1) + 1, x:size(1) - oracle_x:size(1)), train_x, pairwise_func)
+        resampling(x:narrow(1, oracle_x:size(1) + 1, x:size(1)-oracle_x:size(1)), y:narrow(1, oracle_x:size(1) + 1, x:size(1) - oracle_x:size(1)), train_x, pairwise_func)
         x:narrow(1, 1, oracle_x:size(1)):copy(oracle_x)
         y:narrow(1, 1, oracle_y:size(1)):copy(oracle_y)
 
@@ -366,22 +386,19 @@ local function train()
           draw_n = 100
         end
         image.save(path.join(settings.model_dir, "oracle_x.png"),
-          image.toDisplayTensor({
-              input = oracle_x:narrow(1, 1, draw_n * draw_n),
-              padding = 2,
-              nrow = draw_n,
-              min = 0,
-              max = 1}))
+          image.toDisplayTensor({ input = oracle_x:narrow(1, 1, draw_n * draw_n), padding = 2, nrow = draw_n, min = 0, max = 1 }))
       else
         resampling(x, y, train_x, pairwise_func)
       end
     else
       resampling(x, y, train_x, pairwise_func)
     end
+
     collectgarbage()
     instance_loss = torch.Tensor(x:size(1)):zero()
 
     for i = 1, settings.inner_epoch do
+      ------ settings.inner_epoch = 2(set)
       model:training()
       local train_score, il = minibatch_adam(model, criterion, eval_metric, x, y, adam_config)
       instance_loss:copy(il)
@@ -402,22 +419,26 @@ local function train()
           torch.save(settings.model_file_best, model:clearState(), "ascii")
           torch.save(string.format(settings.model_file, epoch, i), model:clearState(), "ascii")
           if settings.method == "noise" then
+            ------ settings.method = "scale"(set) -> not used
             local log = path.join(settings.model_dir,
               ("noise%d_best.%d-%d.png"):format(settings.noise_level,
                 epoch, i))
             save_test_jpeg(model, test_image, log)
           elseif settings.method == "scale" then
+            ------ settings.method = "scale"(set) -> used
             local log = path.join(settings.model_dir,
               ("scale%.1f_best.%d-%d.png"):format(settings.scale,
                 epoch, i))
             save_test_scale(model, test_image, log)
           elseif settings.method == "noise_scale" then
+            ------ settings.method = "scale"(set) -> not used
             local log = path.join(settings.model_dir,
               ("noise%d_scale%.1f_best.%d-%d.png"):format(settings.noise_level,
                 settings.scale,
                 epoch, i))
             save_test_scale(model, test_image, log)
           elseif settings.method == "user" then
+            ------ settings.method = "scale"(set) -> not used
             local log = path.join(settings.model_dir,
               ("%s_best.%d-%d.png"):format(settings.name,
                 epoch, i))
@@ -426,19 +447,25 @@ local function train()
         else
           torch.save(settings.model_file, model:clearState(), "ascii")
           if settings.method == "noise" then
+            ------ settings.method = "scale"(set) -> not used
             local log = path.join(settings.model_dir,
               ("noise%d_best.png"):format(settings.noise_level))
             save_test_jpeg(model, test_image, log)
+
           elseif settings.method == "scale" then
+            ------ settings.method = "scale"(set) -> used
             local log = path.join(settings.model_dir,
               ("scale%.1f_best.png"):format(settings.scale))
             save_test_scale(model, test_image, log)
+
           elseif settings.method == "noise_scale" then
+            ------ settings.method = "scale"(set) -> not used
             local log = path.join(settings.model_dir,
               ("noise%d_scale%.1f_best.png"):format(settings.noise_level,
                 settings.scale))
             save_test_scale(model, test_image, log)
           elseif settings.method == "user" then
+            ------ settings.method = "scale"(set) -> not used
             local log = path.join(settings.model_dir,
               ("%s_best.png"):format(settings.name))
             save_test_user(model, test_image, log)
@@ -458,4 +485,60 @@ end
 torch.manualSeed(settings.seed)
 cutorch.manualSeed(settings.seed)
 print(settings)
+------ sample result
+--[[
+{
+  active_cropping_rate : 0.5
+  batch_size : 16
+  name : "user"
+  method : "scale"
+  max_size : 256
+  validation_crops : 200
+  plot : false
+  patches : 64
+  save_history : false
+  resize_blur_max : 1.05
+  gpu : -1
+  test : "images/miku_small.png"
+  downsampling_filters :
+    {
+      1 : "Box"
+      2 : "Lanczos"
+      3 : "Sinc"
+    }
+  resume : ""
+  crop_size : 48
+  random_color_noise_rate : 0
+  images : "./data/images.t7"
+  seed : 11
+  image_list : "./data/image_list.txt"
+  resize_blur_min : 0.95
+  nr_rate : 0.65
+  model_file : "models/my_model/scale2.0x_model.t7"
+  learning_rate_decay : 3e-07
+  model : "upconv_7"
+  active_cropping_tries : 10
+  use_transparent_png : false
+  oracle_drop_rate : 0.5
+  inner_epoch : 2
+  random_overlay_rate : 0
+  epoch : 2
+  data_dir : "./data"
+  learning_rate : 0.00025
+  random_half_rate : 0
+  scale : 2
+  jpeg_chroma_subsampling_rate : 0.5
+  max_training_image_size : -1
+  oracle_rate : 0.1
+  model_dir : "models/my_model"
+  style : "art"
+  random_unsharp_mask_rate : 0
+  color : "rgb"
+  noise_level : 1
+  backend : "cunn"
+  validation_rate : 0.05
+  thread : -1
+}
+]]
 train()
+------ local function train() in this file

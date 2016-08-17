@@ -5,7 +5,7 @@ require 'trepl'
 -- global settings
 
 if package.preload.settings then
-   return package.preload.settings
+  return package.preload.settings
 end
 
 -- default tensor type
@@ -61,88 +61,88 @@ cmd:option("-resume", "", 'resume model file')
 cmd:option("-name", "user", 'model name for user method')
 
 local function to_bool(settings, name)
-   if settings[name] == 1 then
-      settings[name] = true
-   else
-      settings[name] = false
-   end
+  if settings[name] == 1 then
+    settings[name] = true
+  else
+    settings[name] = false
+  end
 end
 
 local opt = cmd:parse(arg)
 for k, v in pairs(opt) do
-   settings[k] = v
+  settings[k] = v
 end
 to_bool(settings, "plot")
 to_bool(settings, "save_history")
 to_bool(settings, "use_transparent_png")
 
 if settings.plot then
-   require 'gnuplot'
+  require 'gnuplot'
 end
 if settings.save_history then
-   if settings.method == "noise" then
-      settings.model_file = string.format("%s/noise%d_model.%%d-%%d.t7",
-					  settings.model_dir, settings.noise_level)
-      settings.model_file_best = string.format("%s/noise%d_model.t7",
-					       settings.model_dir, settings.noise_level)
-   elseif settings.method == "scale" then
-      settings.model_file = string.format("%s/scale%.1fx_model.%%d-%%d.t7",
-					  settings.model_dir, settings.scale)
-      settings.model_file_best = string.format("%s/scale%.1fx_model.t7",
-					       settings.model_dir, settings.scale)
-   elseif settings.method == "noise_scale" then
-      settings.model_file = string.format("%s/noise%d_scale%.1fx_model.%%d-%%d.t7",
-					  settings.model_dir,
-					  settings.noise_level,
-					  settings.scale)
-      settings.model_file_best = string.format("%s/noise%d_scale%.1fx_model.t7",
-					       settings.model_dir,
-					       settings.noise_level, 
-					       settings.scale)
-   elseif settings.method == "user" then
-      settings.model_file = string.format("%s/%s_model.%%d-%%d.t7",
-					  settings.model_dir,
-					  settings.name)
-      settings.model_file_best = string.format("%s/%s_model.t7",
-					       settings.model_dir,
-					       settings.name)
-   else
-      error("unknown method: " .. settings.method)
-   end
+  if settings.method == "noise" then
+    settings.model_file = string.format("%s/noise%d_model.%%d-%%d.t7",
+      settings.model_dir, settings.noise_level)
+    settings.model_file_best = string.format("%s/noise%d_model.t7",
+      settings.model_dir, settings.noise_level)
+  elseif settings.method == "scale" then
+    settings.model_file = string.format("%s/scale%.1fx_model.%%d-%%d.t7",
+      settings.model_dir, settings.scale)
+    settings.model_file_best = string.format("%s/scale%.1fx_model.t7",
+      settings.model_dir, settings.scale)
+  elseif settings.method == "noise_scale" then
+    settings.model_file = string.format("%s/noise%d_scale%.1fx_model.%%d-%%d.t7",
+      settings.model_dir,
+      settings.noise_level,
+      settings.scale)
+    settings.model_file_best = string.format("%s/noise%d_scale%.1fx_model.t7",
+      settings.model_dir,
+      settings.noise_level,
+      settings.scale)
+  elseif settings.method == "user" then
+    settings.model_file = string.format("%s/%s_model.%%d-%%d.t7",
+      settings.model_dir,
+      settings.name)
+    settings.model_file_best = string.format("%s/%s_model.t7",
+      settings.model_dir,
+      settings.name)
+  else
+    error("unknown method: " .. settings.method)
+  end
 else
-   if settings.method == "noise" then
-      settings.model_file = string.format("%s/noise%d_model.t7",
-					  settings.model_dir, settings.noise_level)
-   elseif settings.method == "scale" then
-      settings.model_file = string.format("%s/scale%.1fx_model.t7",
-					  settings.model_dir, settings.scale)
-   elseif settings.method == "noise_scale" then
-      settings.model_file = string.format("%s/noise%d_scale%.1fx_model.t7",
-					  settings.model_dir, settings.noise_level, settings.scale)
-   elseif settings.method == "user" then
-      settings.model_file = string.format("%s/%s_model.t7",
-					  settings.model_dir, settings.name)
-   else
-      error("unknown method: " .. settings.method)
-   end
+  if settings.method == "noise" then
+    settings.model_file = string.format("%s/noise%d_model.t7",
+      settings.model_dir, settings.noise_level)
+  elseif settings.method == "scale" then
+    settings.model_file = string.format("%s/scale%.1fx_model.t7",
+      settings.model_dir, settings.scale)
+  elseif settings.method == "noise_scale" then
+    settings.model_file = string.format("%s/noise%d_scale%.1fx_model.t7",
+      settings.model_dir, settings.noise_level, settings.scale)
+  elseif settings.method == "user" then
+    settings.model_file = string.format("%s/%s_model.t7",
+      settings.model_dir, settings.name)
+  else
+    error("unknown method: " .. settings.method)
+  end
 end
 if not (settings.color == "rgb" or settings.color == "y") then
-   error("color must be y or rgb")
+  error("color must be y or rgb")
 end
 if not ( settings.scale == 1 or (settings.scale == math.floor(settings.scale) and settings.scale % 2 == 0)) then
-   error("scale must be 1 or mod-2")
+  error("scale must be 1 or mod-2")
 end
 if not (settings.style == "art" or
-	settings.style == "photo") then
-   error(string.format("unknown style: %s", settings.style))
+  settings.style == "photo") then
+  error(string.format("unknown style: %s", settings.style))
 end
 if settings.thread > 0 then
-   torch.setnumthreads(tonumber(settings.thread))
+  torch.setnumthreads(tonumber(settings.thread))
 end
 if settings.downsampling_filters and settings.downsampling_filters:len() > 0 then
-   settings.downsampling_filters = settings.downsampling_filters:split(",")
+  settings.downsampling_filters = settings.downsampling_filters:split(",")
 else
-   settings.downsampling_filters = {"Box", "Lanczos", "Catrom"}
+  settings.downsampling_filters = {"Box", "Lanczos", "Catrom"}
 end
 
 settings.images = string.format("%s/images.t7", settings.data_dir)

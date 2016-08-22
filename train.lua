@@ -416,6 +416,7 @@ local function train()
         best_score = score.MSE
         print("* Best model is updated")
         if settings.save_history then
+          ------ settings.save_history = "fault"(default) -> unused
           torch.save(settings.model_file_best, model:clearState(), "ascii")
           torch.save(string.format(settings.model_file, epoch, i), model:clearState(), "ascii")
           if settings.method == "noise" then

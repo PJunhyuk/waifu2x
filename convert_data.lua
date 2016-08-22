@@ -1,3 +1,6 @@
+---- sample input on cmd : ~/waifu2x# th convert_data.lua
+------ means for sample
+
 require 'pl'
 local __FILE__ = (function() return string.gsub(debug.getinfo(2, 'S').source, "^@", "") end)()
 package.path = path.join(path.dirname(__FILE__), "lib", "?.lua;") .. package.path
@@ -70,6 +73,7 @@ end
 local function load_images(list)
   local MARGIN = 32
   local csv = csvigo.load({path = list, verbose = false, mode = "raw"})
+  ------ csv : comma-separated values
   local x = {}
   local skip_notice = false
   for i = 1, #csv do
@@ -82,6 +86,7 @@ local function load_images(list)
       filters = csv_meta.filters
     end
     local im, meta = image_loader.load_byte(filename)
+    ------ function image_loader.load_byte(file) in lib/image_loader.lua
     local skip = false
     local alpha_color = torch.random(0, 1)
     if meta and meta.alpha then
@@ -112,10 +117,13 @@ local function load_images(list)
         im = iproc.crop_mod4(im)
         local scale = 1.0
         if settings.random_half_rate > 0.0 then
+          ------ settings.random_half_rate = 0(default) -> unused
           scale = 2.0
         end
         if im then
           if im:size(2) > (settings.crop_size * scale + MARGIN) and im:size(3) > (settings.crop_size * scale + MARGIN) then
+            ------ settings.crop_size = 48(default)
+            ------ MARGIN = 32(default)
             table.insert(x, {compression.compress(im), {data = {filters = filters}}})
           else
             io.stderr:write(string.format("\n%s: skip: image is too small (%d > size).\n", filename, settings.crop_size * scale + MARGIN))
@@ -133,8 +141,63 @@ local function load_images(list)
   return x
 end
 
-
 torch.manualSeed(settings.seed)
 print(settings)
+------ sample result
+--[[
+{
+  active_cropping_rate : 0.5
+  batch_size : 16
+  name : "user"
+  method : "scale"
+  max_size : 256
+  validation_crops : 200
+  plot : false
+  patches : 64
+  save_history : false
+  resize_blur_max : 1.05
+  gpu : -1
+  test : "images/miku_small.png"
+  downsampling_filters :
+  {
+    1 : "Box"
+    2 : "Lanczos"
+    3 : "Sinc"
+  }
+  resume : ""
+  crop_size : 48
+  random_color_noise_rate : 0
+  images : ./data/images.t7"
+  seed : 11
+  image_list : "./data/image_list.txt"
+  resize_blur_min : 0.95
+  nr_rate : 0.65
+  model_file : "./models/scale2.0x_model.t7"
+  learning_rate_decay : 3e-07
+  model : "vgg_7"
+  active_cropping_tries : 10
+  use_transparent_png : false
+  oracle_drop_rate : 0.5
+  inner_epoch : 4
+  random_overlay_rate : 0
+  epoch : 50
+  data_dir : "./data"
+  learning_rate : 0.00025
+  random_half_rate : 0
+  scale : 2
+  jpeg_chroma_subsampling_rate : 0.5
+  max_training_image_size : -1
+  oracle_rate : 0.1
+  model_dir : "./models"
+  style : "art"
+  random_unsharp_mask_rate : 0
+  color : "rgb"
+  noise_level : 1
+  backend : "cunn"
+  validation_rate : 0.05
+  thread : -1
+}
+ [=================== 202599/202599 ===================]  Tot:  1h36m | Step: 42ms
+]]
 local x = load_images(settings.image_list)
 torch.save(settings.images, x)

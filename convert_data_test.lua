@@ -75,21 +75,26 @@ local function load_images(list)
   ------ csv : comma-separated values
   local x = {}
   local skip_notice = false
-  ------ #csv :
-  print(#csv)
-  ------ csv[1][1] :
-  print(csv[1][1])
-  ------ csv[1][2] :
-  print(csv[1][2])
+  ------ #csv : 9999
+  print("#csv" .. #csv)
+  ------ csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
+  print("csv[1][1]" .. csv[1][1])
+  ------ csv[1][2] : nil
+  print("csv[1][2]" .. csv[1][2])
   for i = 1, #csv do
     local filename = csv[i][1]
     local csv_meta = csv[i][2]
+
     if csv_meta and csv_meta:len() > 0 then
+      ------ csv_meta = nil -> unused
       csv_meta = cjson.decode(csv_meta)
     end
+
     if csv_meta and csv_meta.filters then
+      ------ unused
       filters = csv_meta.filters
     end
+
     local im, meta = image_loader.load_byte(filename)
     ------ function image_loader.load_byte(file) in lib/image_loader.lua
     local skip = false
@@ -113,6 +118,7 @@ local function load_images(list)
         skip_notice = true
       end
     else
+      print("checkpoint #1")
       ------ unused
       if csv_meta and csv_meta.x then
         -- method == user
@@ -145,6 +151,7 @@ local function load_images(list)
         end
       end
     end
+
     xlua.progress(i, #csv)
     if i % 10 == 0 then
       collectgarbage()

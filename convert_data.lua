@@ -91,6 +91,7 @@ local function load_images(list)
     local alpha_color = torch.random(0, 1)
     if meta and meta.alpha then
       if settings.use_transparent_png then
+        ------ settings.use_transparant_png = false(default) -> unused
         im = alpha_util.fill(im, meta.alpha, alpha_color)
       else
         skip = true

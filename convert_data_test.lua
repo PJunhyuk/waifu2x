@@ -80,7 +80,7 @@ local function load_images(list)
   ------ csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
   print("csv[1][1]" .. csv[1][1])
   ------ csv[1][2] : nil
-  print("csv[1][2]" .. csv[1][2])
+  print(csv[1][2])
   for i = 1, #csv do
     local filename = csv[i][1]
     local csv_meta = csv[i][2]

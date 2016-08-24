@@ -76,11 +76,16 @@ local function load_images(list)
   local x = {}
   local skip_notice = false
   ------ #csv : 9999
-  print("#csv" .. #csv)
+  print(#csv)
   ------ csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
-  print("csv[1][1]" .. csv[1][1])
+  print(csv[1][1])
   ------ csv[1][2] : nil
   print(csv[1][2])
+
+  print(image_loader.load_byte(csv[1][1]).alpha)
+  print(image_loader.load_byte(csv[2][1]).alpha)
+  print(image_loader.load_byte(csv[3][1]).alpha)
+
   for i = 1, #csv do
     local filename = csv[i][1]
     local csv_meta = csv[i][2]
@@ -111,15 +116,13 @@ local function load_images(list)
     end
 
     if skip then
-      ------ skip = true(set on top) -> used
+      ------ unused!
       if not skip_notice then
-        ------ skip_notice = false(set on top) -> used
         io.stderr:write("skip transparent png (settings.use_transparent_png=0)\n")
         skip_notice = true
       end
     else
-      print("checkpoint #1")
-      ------ unused
+      ------ used!
       if csv_meta and csv_meta.x then
         -- method == user
         local yy = im

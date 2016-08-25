@@ -23,10 +23,8 @@ local function load_images(list)
   ------ #csv : 9999
   ------ csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
   for i = 1, #csv do
-    local filename = csv[i][1]
-    local im, meta = image_loader.load_byte(filename)
+    local im
     ------ function image_loader.load_byte(file) in lib/image_loader.lua
-    local alpha_color = torch.random(0, 1)
     im = iproc.crop_mod4(im)
     local scale = 1.0
     table.insert(x, {compression.compress(im), {data = {filters = filters}}})

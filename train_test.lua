@@ -298,9 +298,7 @@ local function train()
   local hist_train = {}
   local hist_valid = {}
   local model
-  print("cp#1")
   if settings.resume:len() > 0 then
-    print("cp#2")
     ------ on lib/settings.lua
     ------ resume = ""(default) -> unused
     model = torch.load(settings.resume, "ascii")
@@ -314,7 +312,6 @@ local function train()
   end
   local offset = reconstruct.offset_size(model)
   local pairwise_func = function(x, is_validation, n)
-    print("cp#3")
     return transformer(model, x, is_validation, n, offset)
     ------ local function transformer(model, x, is_validation, n, offset) in this file
   end
@@ -333,7 +330,6 @@ local function train()
   if settings.color == "y" then
     ch = 1
   elseif settings.color == "rgb" then
-    print("cp#4")
     ch = 3
   end
   local best_score = 1000.0
@@ -355,7 +351,6 @@ local function train()
     ch * (settings.crop_size - offset * 2) * (settings.crop_size - offset * 2)):zero()
 
   if reconstruct.has_resize(model) then
-    print("cp#5")
     x = torch.Tensor(settings.patches * #train_x,
       ch, settings.crop_size / settings.scale, settings.crop_size / settings.scale)
   else
@@ -366,11 +361,9 @@ local function train()
   local instance_loss = nil
 
   for epoch = 1, settings.epoch do
-    print("cp#6")
     model:training()
     print("# " .. epoch)
     if adam_config.learningRate then
-      print("cp#7")
       print("learning rate: " .. adam_config.learningRate)
       ------ non-existent on # 1 / existent on # 2
       ------ on # 2 -> print "learning rate: 0.00018317702227433"
@@ -378,13 +371,11 @@ local function train()
     print("## resampling")
     ------ print "## resampling"
     if instance_loss then
-      print("cp#8")
       ------ instance_loss = nil -> (maybe) not used
       -- active learning
       local oracle_k = math.min(x:size(1) * (settings.oracle_rate * (1 / (1 - settings.oracle_drop_rate))), x:size(1))
       local oracle_n = math.min(x:size(1) * settings.oracle_rate, x:size(1))
       if oracle_n > 0 then
-        print("cp#9")
         local oracle_x, oracle_y = get_oracle_data(x, y, instance_loss, oracle_k, oracle_n)
         resampling(x:narrow(1, oracle_x:size(1) + 1, x:size(1)-oracle_x:size(1)), y:narrow(1, oracle_x:size(1) + 1, x:size(1) - oracle_x:size(1)), train_x, pairwise_func)
         x:narrow(1, 1, oracle_x:size(1)):copy(oracle_x)
@@ -392,13 +383,11 @@ local function train()
 
         local draw_n = math.floor(math.sqrt(oracle_x:size(1), 0.5))
         if draw_n > 100 then
-          print("cp#10")
           draw_n = 100
         end
         image.save(path.join(settings.model_dir, "oracle_x.png"),
           image.toDisplayTensor({ input = oracle_x:narrow(1, 1, draw_n * draw_n), padding = 2, nrow = draw_n, min = 0, max = 1 }))
       else
-        print("cp#11")
         resampling(x, y, train_x, pairwise_func)
       end
     else
@@ -409,7 +398,6 @@ local function train()
     instance_loss = torch.Tensor(x:size(1)):zero()
 
     for i = 1, settings.inner_epoch do
-      print("cp#12")
       ------ settings.inner_epoch = 2(set)
       model:training()
       local train_score, il = minibatch_adam(model, criterion, eval_metric, x, y, adam_config)
@@ -421,16 +409,13 @@ local function train()
       table.insert(hist_train, train_score.loss)
       table.insert(hist_valid, score.loss)
       if settings.plot then
-        print("cp#13")
         plot(hist_train, hist_valid)
       end
       if score.MSE < best_score then
-        print("cp#14")
         local test_image = image_loader.load_float(settings.test) -- reload
         best_score = score.MSE
         print("* Best model is updated")
         if settings.save_history then
-          print("cp#15")
           ------ settings.save_history = "fault"(default) -> unused
           torch.save(settings.model_file_best, model:clearState(), "ascii")
           torch.save(string.format(settings.model_file, epoch, i), model:clearState(), "ascii")
@@ -495,7 +480,6 @@ local function train()
 end
 
 if settings.gpu > 0 then
-  print("cp#16")
   cutorch.setDevice(settings.gpu)
 end
 

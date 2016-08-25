@@ -275,7 +275,6 @@ local function train()
   ------ delete settings.epoch for no FOR
   ------ used
   model:training()
-  print("# " .. epoch)
 
   print("## resampling")
   ------ print "## resampling"

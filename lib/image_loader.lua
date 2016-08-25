@@ -3,9 +3,6 @@ local ffi = require 'ffi'
 local iproc = require 'iproc'
 require 'pl'
 
------- for rgb2y
-local Image = require 'image'
-
 local image_loader = {}
 
 local clip_eps8 = (1.0 / 255.0) * 0.5 - (1.0e-7 * (1.0 / 255.0) * 0.5)
@@ -125,7 +122,6 @@ end
 function image_loader.decode_byte(blob)
    local im, meta
    im, meta = image_loader.decode_float(blob)
-
    if im then
       im = iproc.float2byte(im)
       -- hmm, alpha does not convert here
@@ -149,13 +145,13 @@ end
 
 
 function image_loader.load_byte(file)
-  local fp = Image.rgb2y(Image.load(file, 3, 'byte'))
-  if not fp then
-    error(file .. ": failed to load image")
-  end
-  local buff = fp:read("*a")
-  fp:close()
-  return image_loader.decode_byte(buff)
+   local fp = io.open(file, "rb")
+   if not fp then
+      error(file .. ": failed to load image")
+   end
+   local buff = fp:read("*a")
+   fp:close()
+   return image_loader.decode_byte(buff)
 end
 
 

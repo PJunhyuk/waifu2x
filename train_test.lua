@@ -221,7 +221,16 @@ local function remove_small_image(x)
   return new_x
 end
 
+
+
+
+
 local function train()
+  torch.manualSeed(settings.seed)
+  cutorch.manualSeed(settings.seed)
+
+  print(settings)
+
   local hist_train = {}
   local hist_valid = {}
   local model
@@ -239,7 +248,8 @@ local function train()
   end
   local criterion = create_criterion(model)
   local eval_metric = w2nn.ClippedMSECriterion(0, 1):cuda()
-  local x = remove_small_image(torch.load(settings.images))
+
+  local x = remove_small_image(load_images(settings.image_list))
   ------ local function remove_small_image(x) in this file
   ------ print "0 small images are removed"
   local train_x, valid_x = split_data(x, math.max(math.floor(settings.validation_rate * #x), 1))
@@ -333,13 +343,6 @@ local function load_images(list)
   end
   return x
 end
-
-torch.manualSeed(settings.seed)
-cutorch.manualSeed(settings.seed)
-print(settings)
-
-local x = load_images(settings.image_list)
-torch.save(settings.images, x)
 
 train()
 ------ local function train() in this file

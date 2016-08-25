@@ -14,7 +14,6 @@ local image_loader = require 'image_loader'
 local iproc = require 'iproc'
 local alpha_util = require 'alpha_util'
 
-
 local function crop_if_large(src, max_size)
   if max_size < 0 then
     return src
@@ -76,38 +75,57 @@ local function load_images(list)
   ------ csv : comma-separated values
   local x = {}
   local skip_notice = false
+  ------ #csv : 9999
+  ------ csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
+  ------ csv[1][2] : nil
+
   for i = 1, #csv do
     local filename = csv[i][1]
     local csv_meta = csv[i][2]
+
     if csv_meta and csv_meta:len() > 0 then
+      ------ unused
+      ------ csv_meta = nil -> unused
       csv_meta = cjson.decode(csv_meta)
     end
+
     if csv_meta and csv_meta.filters then
+      ------ unused
       filters = csv_meta.filters
     end
+
     local im, meta = image_loader.load_byte(filename)
     ------ function image_loader.load_byte(file) in lib/image_loader.lua
     local skip = false
     local alpha_color = torch.random(0, 1)
+
     if meta and meta.alpha then
+      ------ unused
       if settings.use_transparent_png then
         ------ settings.use_transparant_png = false(default) -> unused
         im = alpha_util.fill(im, meta.alpha, alpha_color)
       else
+        ------ used
         skip = true
       end
     end
+
     if skip then
+      ------ unused
       if not skip_notice then
+        print("cp#6")
         io.stderr:write("skip transparent png (settings.use_transparent_png=0)\n")
         skip_notice = true
       end
     else
+      ------ used!
       if csv_meta and csv_meta.x then
+        ------ unused
         -- method == user
         local yy = im
         local xx, meta2 = image_loader.load_byte(csv_meta.x)
         if meta2 and meta2.alpha then
+          ------ unused
           xx = alpha_util.fill(xx, meta2.alpha, alpha_color)
         end
         xx, yy = crop_if_large_pair(xx, yy, settings.max_training_image_size)
@@ -118,11 +136,14 @@ local function load_images(list)
         im = iproc.crop_mod4(im)
         local scale = 1.0
         if settings.random_half_rate > 0.0 then
+          ------ unused
           ------ settings.random_half_rate = 0(default) -> unused
           scale = 2.0
         end
         if im then
+          ------ used
           if im:size(2) > (settings.crop_size * scale + MARGIN) and im:size(3) > (settings.crop_size * scale + MARGIN) then
+            ------ used
             ------ settings.crop_size = 48(default)
             ------ MARGIN = 32(default)
             table.insert(x, {compression.compress(im), {data = {filters = filters}}})
@@ -134,8 +155,10 @@ local function load_images(list)
         end
       end
     end
+
     xlua.progress(i, #csv)
     if i % 10 == 0 then
+      ------ used in case
       collectgarbage()
     end
   end

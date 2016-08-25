@@ -36,39 +36,6 @@ local function crop_if_large(src, max_size)
   end
 end
 
-
-local function crop_if_large_pair(x, y, max_size)
-  if max_size < 0 then
-    return x, y
-  end
-  local scale_y = y:size(2) / x:size(2)
-  local mod = 4
-  assert(x:size(3) == (y:size(3) / scale_y))
-  local tries = 4
-  if y:size(2) > max_size and y:size(3) > max_size then
-    assert(max_size % 4 == 0)
-    local rect_x, rect_y
-    for i = 1, tries do
-      local yi = torch.random(0, y:size(2) - max_size)
-      local xi = torch.random(0, y:size(3) - max_size)
-      if mod then
-        yi = yi - (yi % mod)
-        xi = xi - (xi % mod)
-      end
-      rect_y = iproc.crop(y, xi, yi, xi + max_size, yi + max_size)
-      rect_x = iproc.crop(y, xi / scale_y, yi / scale_y, xi / scale_y + max_size / scale_y, yi / scale_y + max_size / scale_y)
-      -- ignore simple background
-      if rect_y:float():std() >= 0 then
-        break
-      end
-    end
-    return rect_x, rect_y
-  else
-    return x, y
-  end
-end
-
-
 local function load_images(list)
   local MARGIN = 32
   local csv = csvigo.load({path = list, verbose = false, mode = "raw"})
@@ -77,92 +44,19 @@ local function load_images(list)
   local skip_notice = false
   ------ #csv : 9999
   ------ csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
-  ------ csv[1][2] : nil
 
   for i = 1, #csv do
     local filename = csv[i][1]
-    local csv_meta = csv[i][2]
-
-    if csv_meta and csv_meta:len() > 0 then
-      ------ csv_meta = nil -> unused
-      print("cp#1")
-      csv_meta = cjson.decode(csv_meta)
-    end
-
-    if csv_meta and csv_meta.filters then
-      print("cp#2")
-      ------ unused
-      filters = csv_meta.filters
-    end
-
     local im, meta = image_loader.load_byte(filename)
     ------ function image_loader.load_byte(file) in lib/image_loader.lua
-    local skip = false
     local alpha_color = torch.random(0, 1)
-
-    if meta and meta.alpha then
-      print("cp#3")
-      ------ unused
-      if settings.use_transparent_png then
-        print("cp#4")
-        ------ settings.use_transparant_png = false(default) -> unused
-        im = alpha_util.fill(im, meta.alpha, alpha_color)
-      else
-        ------ used
-        skip = true
-      end
-    end
-
-    if skip then
-      print("cp#5")
-      ------ unused!
-      if not skip_notice then
-        print("cp#6")
-        io.stderr:write("skip transparent png (settings.use_transparent_png=0)\n")
-        skip_notice = true
-      end
-    else
-      ------ used!
-      if csv_meta and csv_meta.x then
-        print("cp#7")
-        -- method == user
-        local yy = im
-        local xx, meta2 = image_loader.load_byte(csv_meta.x)
-        if meta2 and meta2.alpha then
-          print("cp#8")
-          xx = alpha_util.fill(xx, meta2.alpha, alpha_color)
-        end
-        xx, yy = crop_if_large_pair(xx, yy, settings.max_training_image_size)
-        table.insert(x, {{y = compression.compress(yy), x = compression.compress(xx)},
-        {data = {filters = filters, has_x = true}}})
-      else
-        im = crop_if_large(im, settings.max_training_image_size)
-        im = iproc.crop_mod4(im)
-        local scale = 1.0
-        if settings.random_half_rate > 0.0 then
-          print("cp#9")
-          ------ settings.random_half_rate = 0(default) -> unused
-          scale = 2.0
-        end
-        if im then
-          print("cp#10")
-          if im:size(2) > (settings.crop_size * scale + MARGIN) and im:size(3) > (settings.crop_size * scale + MARGIN) then
-            print("cp#11")
-            ------ settings.crop_size = 48(default)
-            ------ MARGIN = 32(default)
-            table.insert(x, {compression.compress(im), {data = {filters = filters}}})
-          else
-            io.stderr:write(string.format("\n%s: skip: image is too small (%d > size).\n", filename, settings.crop_size * scale + MARGIN))
-          end
-        else
-          io.stderr:write(string.format("\n%s: skip: load error.\n", filename))
-        end
-      end
-    end
-
+    im = crop_if_large(im, settings.max_training_image_size)
+    im = iproc.crop_mod4(im)
+    local scale = 1.0
+    table.insert(x, {compression.compress(im), {data = {filters = filters}}})
     xlua.progress(i, #csv)
     if i % 10 == 0 then
-      print("cp#11")
+      ------ used in case
       collectgarbage()
     end
   end

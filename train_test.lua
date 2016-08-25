@@ -221,7 +221,8 @@ local function remove_small_image(x)
   return new_x
 end
 
------- for convert_data
+
+
 local function load_images(list)
   local MARGIN = 32
   local csv = csvigo.load({path = list, verbose = false, mode = "raw"})
@@ -247,19 +248,20 @@ local function load_images(list)
   return x
 end
 
+
+
+------ code start : convert_data + train
+
+------ initial setting
 torch.manualSeed(settings.seed)
 cutorch.manualSeed(settings.seed)
-
 print(settings)
 
+------
 local hist_train = {}
 local hist_valid = {}
 
 local model = srcnn.create(settings.model, settings.backend, settings.color)
------- function srcnn.create(model_name, backend, color) in lib/srcnn.lua
------- settings.model = "upconv_7"
------- settings.backend = "cunn"
------- settings.color = "rgb"
 local offset = reconstruct.offset_size(model)
 local pairwise_func = function(x, is_validation, n)
   ------ used -> very often
@@ -269,7 +271,29 @@ end
 local criterion = create_criterion(model)
 local eval_metric = w2nn.ClippedMSECriterion(0, 1):cuda()
 
-local x = remove_small_image(load_images(settings.image_list))
+local MARGIN = 32
+local csv = csvigo.load({path = image_list, verbose = false, mode = "raw"})
+------ csv : comma-separated values
+local x = {}
+local skip_notice = false
+------ #csv : 9999
+------ csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
+for i = 1, #csv do
+  local filename = csv[i][1]
+  local im, meta = image_loader.load_byte(filename)
+  ------ function image_loader.load_byte(file) in lib/image_loader.lua
+  im = image.rgb2y(im)
+  im = iproc.crop_mod4(im)
+  local scale = 1.0
+  table.insert(x, {compression.compress(im), {data = {filters = filters}}})
+  xlua.progress(i, #csv)
+  if i % 10 == 0 then
+    ------ used in case
+    collectgarbage()
+  end
+end
+
+x = remove_small_image(x)
 ------ local function remove_small_image(x) in this file
 ------ print "0 small images are removed"
 local train_x, valid_x = split_data(x, math.max(math.floor(settings.validation_rate * #x), 1))

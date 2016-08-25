@@ -15,11 +15,14 @@ local iproc = require 'iproc'
 local alpha_util = require 'alpha_util'
 
 local function crop_if_large(src, max_size)
+  print("cp#1")
   if max_size < 0 then
+    print("cp#2")
     return src
   end
   local tries = 4
   if src:size(2) >= max_size and src:size(3) >= max_size then
+    print("cp#3")
     local rect
     for i = 1, tries do
       local yi = torch.random(0, src:size(2) - max_size)
@@ -27,6 +30,7 @@ local function crop_if_large(src, max_size)
       rect = iproc.crop(src, xi, yi, xi + max_size, yi + max_size)
       -- ignore simple background
       if rect:float():std() >= 0 then
+        print("cp#4")
 	      break
 	    end
     end
@@ -44,7 +48,6 @@ local function load_images(list)
   local skip_notice = false
   ------ #csv : 9999
   ------ csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
-
   for i = 1, #csv do
     local filename = csv[i][1]
     local im, meta = image_loader.load_byte(filename)

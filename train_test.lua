@@ -247,7 +247,6 @@ local csv = csvigo.load({path = settings.image_list, verbose = false, mode = "ra
 local x = {}
 ------ #csv : 9999 ||| csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
 for i = 1, #csv do
-  print("hi")
   local filename = csv[i][1]
   local im, meta = image_loader.load_byte(filename)
   im = image.rgb2y(im) ------ rgb to gray

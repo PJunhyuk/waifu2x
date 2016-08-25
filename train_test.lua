@@ -1,6 +1,5 @@
------- means for sample
-
 require 'pl'
+------ require file path default setting
 local __FILE__ = (function() return string.gsub(debug.getinfo(2, 'S').source, "^@", "") end)()
 package.path = path.join(path.dirname(__FILE__), "lib", "?.lua;") .. package.path
 
@@ -226,10 +225,34 @@ end
 
 
 ---- code start : convert_data + train
+
 ------ initial setting
 torch.manualSeed(settings.seed)
 cutorch.manualSeed(settings.seed)
 print(settings)
+
+---- data converting (convert_data)
+------ csv download
+local csv = csvigo.load({path = settings.image_list, verbose = false, mode = "raw"}) ------ csv : comma-separated values
+local x = {}
+for i = 1, #csv do ------ #csv : 9999
+  local filename = csv[i][1] ------ filename = /CelebA/Img/img_align_celeba/Img/000755.jpg
+  local im, meta = image_loader.load_byte(filename)
+  -- im = image.rgb2y(im) ------ rgb to gray
+  im = iproc.crop_mod4(im) ------ cut image mod 4
+  ------ table inserting in x
+  table.insert(x, {compression.compress(im), {data = {filters = filters}}})
+  xlua.progress(i, #csv)
+  if i % 10 == 0 then
+    collectgarbage()
+  end
+end
+x = remove_small_image(x)
+------ print "0 small images are removed"
+
+
+
+
 
 ------ variation setting for training
 local hist_train = {}
@@ -241,42 +264,22 @@ local eval_metric = w2nn.ClippedMSECriterion(0, 1):cuda()
 local pairwise_func = function(x, is_validation, n)
   return transformer(model, x, is_validation, n, offset)
 end
-
------- for convert_data
-local csv = csvigo.load({path = settings.image_list, verbose = false, mode = "raw"}) ------ csv : comma-separated values
-local x = {}
------- #csv : 9999 ||| csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
-for i = 1, #csv do
-  local filename = csv[i][1]
-  local im, meta = image_loader.load_byte(filename)
-  -- im = image.rgb2y(im) ------ rgb to gray
-  im = iproc.crop_mod4(im) ------ cut image mod 4
-  ------ table inserting
-  table.insert(x, {compression.compress(im), {data = {filters = filters}}})
-  xlua.progress(i, #csv)
-  if i % 10 == 0 then
-    collectgarbage()
-  end
-end
-
-x = remove_small_image(x)
------- print "0 small images are removed"
+---- additional variation setting for training
 local train_x, valid_x = split_data(x, math.max(math.floor(settings.validation_rate * #x), 1))
 local adam_config = {
-  xLearningRate = settings.learning_rate,
-  xBatchSize = settings.batch_size,
-  xLearningRateDecay = settings.learning_rate_decay
+  xLearningRate = settings.learning_rate, xBatchSize = settings.batch_size, xLearningRateDecay = settings.learning_rate_decay
 }
 local ch = nil
-
 if settings.color == "y" then
   ch = 1
 elseif settings.color == "rgb" then
-  ------ used
   ch = 3
 end
-
 local best_score = 1000.0
+
+
+
+---- make validation-set
 print("# make validation-set")
 ------ print "# make validation-set"
 local valid_xy = make_validation_set(valid_x, pairwise_func, settings.validation_crops, settings.patches)
@@ -284,45 +287,51 @@ valid_x = nil
 collectgarbage()
 model:cuda()
 print("load .. " .. #train_x)
------- #train_x = 9500
 ------ print "load .. 9500"
-
-local x = nil
+------ re-set x, y
 local y = torch.Tensor(settings.patches * #train_x, ch * (settings.crop_size - offset * 2) * (settings.crop_size - offset * 2)):zero()
 x = torch.Tensor(settings.patches * #train_x, ch, settings.crop_size / settings.scale, settings.crop_size / settings.scale)
 local instance_loss = nil
-
------- delete settings.epoch for no FOR
 model:training()
 
+
+
+---- resampling
 print("## resampling")
 ------ print "## resampling"
-
 resampling(x, y, train_x, pairwise_func)
 collectgarbage()
 instance_loss = torch.Tensor(x:size(1)):zero()
 
------- delete settings.inner_epoch for no FOR
+
+
+---- update
 model:training()
 local train_score, il = minibatch_adam(model, criterion, eval_metric, x, y, adam_config)
+------ print "## update"
 instance_loss:copy(il)
 print(train_score)
+
+
+
+---- evaluation & validation
+------ model evaluating
 model:evaluate()
+
 print("# validation")
+------ validation
 local score = validate(model, criterion, eval_metric, valid_xy, adam_config.xBatchSize)
 table.insert(hist_train, train_score.loss)
 table.insert(hist_valid, score.loss)
 if score.MSE < best_score then
-  ------ used
   local test_image = image_loader.load_float(settings.test) -- reload
   best_score = score.MSE
   print("* Best model is updated")
-  ------ settings.save_history = "fault"(default) -> unused
   torch.save(settings.model_file, model:clearState(), "ascii")
-  ------ settings.method = "scale"(set) -> used
   local log = path.join(settings.model_dir, ("scale%.1f_best.png"):format(settings.scale))
   save_test_scale(model, test_image, log)
 end
 print("Batch-wise PSNR: " .. score.PSNR .. ", loss: " .. score.loss .. ", MSE: " .. score.MSE .. ", Minimum MSE: " .. best_score)
 ------ Batch-wise PSNR: 31.077134350816, loss: 0.00044024189632818, MSE: 0.00078034484351066, Minimum MSE: 0.00078034484351066
+
 collectgarbage()

@@ -1,12 +1,17 @@
 ------ means for sample
 
------- for train
 require 'pl'
 local __FILE__ = (function() return string.gsub(debug.getinfo(2, 'S').source, "^@", "") end)()
 package.path = path.join(path.dirname(__FILE__), "lib", "?.lua;") .. package.path
+
+------ for train
 require 'optim'
 require 'xlua'
 require 'w2nn'
+------ for convert_data
+require 'image'
+
+------ for train
 local settings = require 'settings'
 local srcnn = require 'srcnn'
 local minibatch_adam = require 'minibatch_adam'
@@ -15,9 +20,7 @@ local reconstruct = require 'reconstruct'
 local compression = require 'compression'
 local pairwise_transform = require 'pairwise_transform'
 local image_loader = require 'image_loader'
-
 ------ for convert_data
-require 'image'
 local cjson = require 'cjson'
 local csvigo = require 'csvigo'
 local alpha_util = require 'alpha_util'
@@ -206,8 +209,7 @@ local function remove_small_image(x)
     else
       x_s = compression.size(xe)
     end
-    if x_s[2] / settings.scale > settings.crop_size + 32 and
-    x_s[3] / settings.scale > settings.crop_size + 32 then
+    if x_s[2] / settings.scale > settings.crop_size + 32 and x_s[3] / settings.scale > settings.crop_size + 32 then
       table.insert(new_x, x[i])
     end
     if i % 100 == 0 then
@@ -247,18 +249,19 @@ local function train()
     xLearningRateDecay = settings.learning_rate_decay
   }
   local ch = nil
+
   if settings.color == "y" then
     ch = 1
   elseif settings.color == "rgb" then
     ------ used
     ch = 3
   end
+
   local best_score = 1000.0
   print("# make validation-set")
   ------ print "# make validation-set"
   local valid_xy = make_validation_set(valid_x, pairwise_func, settings.validation_crops, settings.patches)
   valid_x = nil
-
   collectgarbage()
   model:cuda()
   print("load .. " .. #train_x)
@@ -267,26 +270,20 @@ local function train()
 
   local x = nil
   local y = torch.Tensor(settings.patches * #train_x, ch * (settings.crop_size - offset * 2) * (settings.crop_size - offset * 2)):zero()
-
   x = torch.Tensor(settings.patches * #train_x, ch, settings.crop_size / settings.scale, settings.crop_size / settings.scale)
-
   local instance_loss = nil
 
   ------ delete settings.epoch for no FOR
-  ------ used
   model:training()
 
   print("## resampling")
   ------ print "## resampling"
 
   resampling(x, y, train_x, pairwise_func)
-
   collectgarbage()
   instance_loss = torch.Tensor(x:size(1)):zero()
 
   ------ delete settings.inner_epoch for no FOR
-  ------ used
-  ------ settings.inner_epoch = 2(set)
   model:training()
   local train_score, il = minibatch_adam(model, criterion, eval_metric, x, y, adam_config)
   instance_loss:copy(il)
@@ -304,8 +301,7 @@ local function train()
     ------ settings.save_history = "fault"(default) -> unused
     torch.save(settings.model_file, model:clearState(), "ascii")
     ------ settings.method = "scale"(set) -> used
-    local log = path.join(settings.model_dir,
-      ("scale%.1f_best.png"):format(settings.scale))
+    local log = path.join(settings.model_dir, ("scale%.1f_best.png"):format(settings.scale))
     save_test_scale(model, test_image, log)
   end
   print("Batch-wise PSNR: " .. score.PSNR .. ", loss: " .. score.loss .. ", MSE: " .. score.MSE .. ", Minimum MSE: " .. best_score)

@@ -2,6 +2,7 @@ local gm = require 'graphicsmagick'
 local ffi = require 'ffi'
 local iproc = require 'iproc'
 require 'pl'
+require 'image'
 
 local image_loader = {}
 
@@ -132,7 +133,6 @@ function image_loader.decode_byte(blob)
    end
 end
 
-
 function image_loader.load_float(file)
   local fp = io.open(file, "rb")
   if not fp then
@@ -144,16 +144,17 @@ function image_loader.load_float(file)
   ------ function image_loader.decode_float(blob) in this file
 end
 
-
 function image_loader.load_byte(file)
    local fp = io.open(file, "rb")
    if not fp then
       error(file .. ": failed to load image")
    end
+   fp = image.rgb2y(fp)
    local buff = fp:read("*a")
    fp:close()
    return image_loader.decode_byte(buff)
 end
+
 local function test()
    torch.setdefaulttensortype("torch.FloatTensor")
    local a = image_loader.load_float("../images/lena.png")

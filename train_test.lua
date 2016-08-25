@@ -16,6 +16,14 @@ local compression = require 'compression'
 local pairwise_transform = require 'pairwise_transform'
 local image_loader = require 'image_loader'
 
+------ for convert_data
+require 'image'
+local cjson = require 'cjson'
+local csvigo = require 'csvigo'
+local alpha_util = require 'alpha_util'
+
+
+
 local function save_test_scale(model, rgb, file)
   print("cp#00")
   local up = reconstruct.scale(model, settings.scale, rgb)
@@ -38,7 +46,7 @@ local function save_test_user(model, rgb, file)
 end
 
 local function split_data(x, test_size)
-  print("cp#03")
+  ------ used
   local index = torch.randperm(#x)
   local train_size = #x - test_size
   local train_x = {}
@@ -53,7 +61,7 @@ local function split_data(x, test_size)
 end
 
 local function make_validation_set(x, transformer, n, patches)
-  print("cp#04")
+  ------ used
   n = n or 4
   local validation_patches = math.min(16, patches or 16)
   local data = {}
@@ -64,9 +72,7 @@ local function make_validation_set(x, transformer, n, patches)
         table.insert(data, {x = xy[j][1], y = xy[j][2]})
       end
     end
-    --[[
     xlua.progress(i, #x)
-    ]]
     collectgarbage()
   end
   local new_data = {}
@@ -102,20 +108,16 @@ local function validate(model, criterion, eval_metric, data, batch_size)
     mse = mse + eval_metric:forward(z, targets)
     loss_count = loss_count + 1
     if loss_count % 10 == 0 then
-      --[[
       xlua.progress(t, #data)
-      ]]
       collectgarbage()
     end
   end
-  --[[
   xlua.progress(#data, #data)
-  ]]
   return {loss = loss / loss_count, MSE = mse / loss_count, PSNR = 10 * math.log10(1 / (mse / loss_count))}
 end
 
 local function create_criterion(model)
-  print("cp#06")
+  ------ used
   if reconstruct.is_rgb(model) then
     local offset = reconstruct.offset_size(model)
     local output_w = settings.crop_size - offset * 2
@@ -134,7 +136,7 @@ local function create_criterion(model)
 end
 
 local function transformer(model, x, is_validation, n, offset)
-  print("cp#07")
+  ------ used very often
   local meta = {data = {}}
   local y = nil
   if type(x) == "table" and type(x[2]) == "table" then
@@ -236,9 +238,7 @@ local function resampling(x, y, train_x, transformer, input_size, target_size)
   local c = 1
   local shuffle = torch.randperm(#train_x)
   for t = 1, #train_x do
-    --[[
     xlua.progress(t, #train_x)
-    ]]
     local xy = transformer(train_x[shuffle[t]], false, settings.patches)
     for i = 1, #xy do
       x[c]:copy(xy[i][1])
@@ -255,9 +255,7 @@ local function resampling(x, y, train_x, transformer, input_size, target_size)
       collectgarbage()
     end
   end
-  --[[
   xlua.progress(#train_x, #train_x)
-  ]]
 end
 
 local function get_oracle_data(x, y, instance_loss, k, samples)
@@ -282,7 +280,7 @@ local function get_oracle_data(x, y, instance_loss, k, samples)
 end
 
 local function remove_small_image(x)
-  print("cp#10")
+  ------ used
   local new_x = {}
   for i = 1, #x do
     local xe, meta, x_s
@@ -449,6 +447,33 @@ if settings.gpu > 0 then
   cutorch.setDevice(settings.gpu)
 end
 
+------ for convert_data
+local function load_images(list)
+  local MARGIN = 32
+  local csv = csvigo.load({path = list, verbose = false, mode = "raw"})
+  ------ csv : comma-separated values
+  local x = {}
+  local skip_notice = false
+  ------ #csv : 9999
+  ------ csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
+  for i = 1, #csv do
+    local filename = csv[i][1]
+    local im, meta = image_loader.load_byte(filename)
+    ------ function image_loader.load_byte(file) in lib/image_loader.lua
+    im = iproc.crop_mod4(im)
+    local scale = 1.0
+    table.insert(x, {compression.compress(im), {data = {filters = filters}}})
+    xlua.progress(i, #csv)
+    if i % 10 == 0 then
+      ------ used in case
+      collectgarbage()
+    end
+  end
+  return x
+end
+
+
+
 torch.manualSeed(settings.seed)
 cutorch.manualSeed(settings.seed)
 print(settings)
@@ -507,5 +532,8 @@ print(settings)
   thread : -1
 }
 ]]
+local x = load_images(settings.image_list)
+torch.save(settings.images, x)
+
 train()
 ------ local function train() in this file

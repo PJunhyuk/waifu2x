@@ -249,7 +249,7 @@ local x = {}
 for i = 1, #csv do
   local filename = csv[i][1]
   local im, meta = image_loader.load_byte(filename)
-  im = image.rgb2y(im) ------ rgb to gray
+  -- im = image.rgb2y(im) ------ rgb to gray
   im = iproc.crop_mod4(im) ------ cut image mod 4
   ------ table inserting
   table.insert(x, {compression.compress(im), {data = {filters = filters}}})

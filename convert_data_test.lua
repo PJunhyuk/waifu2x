@@ -14,32 +14,6 @@ local image_loader = require 'image_loader'
 local iproc = require 'iproc'
 local alpha_util = require 'alpha_util'
 
-local function crop_if_large(src, max_size)
-  print("cp#1")
-  if max_size < 0 then
-    print("cp#2")
-    return src
-  end
-  local tries = 4
-  if src:size(2) >= max_size and src:size(3) >= max_size then
-    print("cp#3")
-    local rect
-    for i = 1, tries do
-      local yi = torch.random(0, src:size(2) - max_size)
-      local xi = torch.random(0, src:size(3) - max_size)
-      rect = iproc.crop(src, xi, yi, xi + max_size, yi + max_size)
-      -- ignore simple background
-      if rect:float():std() >= 0 then
-        print("cp#4")
-	      break
-	    end
-    end
-    return rect
-  else
-    return src
-  end
-end
-
 local function load_images(list)
   local MARGIN = 32
   local csv = csvigo.load({path = list, verbose = false, mode = "raw"})
@@ -53,7 +27,6 @@ local function load_images(list)
     local im, meta = image_loader.load_byte(filename)
     ------ function image_loader.load_byte(file) in lib/image_loader.lua
     local alpha_color = torch.random(0, 1)
-    im = crop_if_large(im, settings.max_training_image_size)
     im = iproc.crop_mod4(im)
     local scale = 1.0
     table.insert(x, {compression.compress(im), {data = {filters = filters}}})

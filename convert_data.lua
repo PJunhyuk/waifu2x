@@ -15,11 +15,14 @@ local iproc = require 'iproc'
 local alpha_util = require 'alpha_util'
 
 local function crop_if_large(src, max_size)
+  ------ used
   if max_size < 0 then
+    ------ used
     return src
   end
   local tries = 4
   if src:size(2) >= max_size and src:size(3) >= max_size then
+    ------ unused
     local rect
     for i = 1, tries do
       local yi = torch.random(0, src:size(2) - max_size)
@@ -27,6 +30,7 @@ local function crop_if_large(src, max_size)
       rect = iproc.crop(src, xi, yi, xi + max_size, yi + max_size)
       -- ignore simple background
       if rect:float():std() >= 0 then
+        ------ unused
 	      break
 	    end
     end
@@ -38,6 +42,7 @@ end
 
 
 local function crop_if_large_pair(x, y, max_size)
+  ------ unused
   if max_size < 0 then
     return x, y
   end

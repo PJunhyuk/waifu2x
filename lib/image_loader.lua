@@ -4,7 +4,7 @@ local iproc = require 'iproc'
 require 'pl'
 
 ------ for rgb2y
-require 'image'
+local Image = require 'image'
 
 local image_loader = {}
 

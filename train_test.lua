@@ -1,6 +1,6 @@
----- sample input on cmd : ~/waifu2x# th train.lua -model upconv_7 -model_dir models/my_model -method scale -scale 2 -test images/miku_small.png -epoch 2 -inner_epoch 2
 ------ means for sample
 
+------ for train
 require 'pl'
 local __FILE__ = (function() return string.gsub(debug.getinfo(2, 'S').source, "^@", "") end)()
 package.path = path.join(path.dirname(__FILE__), "lib", "?.lua;") .. package.path
@@ -22,27 +22,10 @@ local cjson = require 'cjson'
 local csvigo = require 'csvigo'
 local alpha_util = require 'alpha_util'
 
-
-
 local function save_test_scale(model, rgb, file)
-  print("cp#00")
+  ------ used
   local up = reconstruct.scale(model, settings.scale, rgb)
   image.save(file, up)
-end
-
-local function save_test_jpeg(model, rgb, file)
-  print("cp#01")
-  local im, count = reconstruct.image(model, rgb)
-  image.save(file, im)
-end
-
-local function save_test_user(model, rgb, file)
-  print("cp#02")
-  if settings.scale == 1 then
-    save_test_jpeg(model, rgb, file)
-  else
-    save_test_scale(model, rgb, file)
-  end
 end
 
 local function split_data(x, test_size)
@@ -85,7 +68,7 @@ local function make_validation_set(x, transformer, n, patches)
 end
 
 local function validate(model, criterion, eval_metric, data, batch_size)
-  print("cp#05")
+  ------ used
   local loss = 0
   local mse = 0
   local loss_count = 0
@@ -167,74 +150,24 @@ local function transformer(model, x, is_validation, n, offset)
     random_color_noise_rate = settings.random_color_noise_rate
     random_overlay_rate = settings.random_overlay_rate
   end
-  if settings.method == "scale" then
-    local conf = tablex.update({
-        downsampling_filters = settings.downsampling_filters,
-        random_half_rate = settings.random_half_rate,
-        random_color_noise_rate = random_color_noise_rate,
-        random_overlay_rate = random_overlay_rate,
-        random_unsharp_mask_rate = settings.random_unsharp_mask_rate,
-        max_size = settings.max_size,
-        active_cropping_rate = active_cropping_rate,
-        active_cropping_tries = active_cropping_tries,
-        rgb = (settings.color == "rgb"),
-        x_upsampling = not reconstruct.has_resize(model),
-        resize_blur_min = settings.resize_blur_min,
-        resize_blur_max = settings.resize_blur_max}, meta)
-    return pairwise_transform.scale(x, settings.scale, settings.crop_size, offset, n, conf)
-  elseif settings.method == "noise" then
-    local conf = tablex.update({
-        random_half_rate = settings.random_half_rate,
-        random_color_noise_rate = random_color_noise_rate,
-        random_overlay_rate = random_overlay_rate,
-        random_unsharp_mask_rate = settings.random_unsharp_mask_rate,
-        max_size = settings.max_size,
-        jpeg_chroma_subsampling_rate = settings.jpeg_chroma_subsampling_rate,
-        active_cropping_rate = active_cropping_rate,
-        active_cropping_tries = active_cropping_tries,
-        nr_rate = settings.nr_rate,
-        rgb = (settings.color == "rgb")}, meta)
-    return pairwise_transform.jpeg(x,
-      settings.style,
-      settings.noise_level,
-      settings.crop_size, offset,
-      n, conf)
-  elseif settings.method == "noise_scale" then
-    local conf = tablex.update({
-        downsampling_filters = settings.downsampling_filters,
-        random_half_rate = settings.random_half_rate,
-        random_color_noise_rate = random_color_noise_rate,
-        random_overlay_rate = random_overlay_rate,
-        random_unsharp_mask_rate = settings.random_unsharp_mask_rate,
-        max_size = settings.max_size,
-        jpeg_chroma_subsampling_rate = settings.jpeg_chroma_subsampling_rate,
-        nr_rate = settings.nr_rate,
-        active_cropping_rate = active_cropping_rate,
-        active_cropping_tries = active_cropping_tries,
-        rgb = (settings.color == "rgb"),
-        x_upsampling = not reconstruct.has_resize(model),
-        resize_blur_min = settings.resize_blur_min,
-        resize_blur_max = settings.resize_blur_max}, meta)
-    return pairwise_transform.jpeg_scale(x,
-      settings.scale,
-      settings.style,
-      settings.noise_level,
-      settings.crop_size, offset,
-      n, conf)
-  elseif settings.method == "user" then
-    local conf = tablex.update({
-        max_size = settings.max_size,
-        active_cropping_rate = active_cropping_rate,
-        active_cropping_tries = active_cropping_tries,
-        rgb = (settings.color == "rgb")}, meta)
-    return pairwise_transform.user(x, y,
-      settings.crop_size, offset,
-      n, conf)
-  end
+  local conf = tablex.update({
+      downsampling_filters = settings.downsampling_filters,
+      random_half_rate = settings.random_half_rate,
+      random_color_noise_rate = random_color_noise_rate,
+      random_overlay_rate = random_overlay_rate,
+      random_unsharp_mask_rate = settings.random_unsharp_mask_rate,
+      max_size = settings.max_size,
+      active_cropping_rate = active_cropping_rate,
+      active_cropping_tries = active_cropping_tries,
+      rgb = (settings.color == "rgb"),
+      x_upsampling = not reconstruct.has_resize(model),
+      resize_blur_min = settings.resize_blur_min,
+      resize_blur_max = settings.resize_blur_max}, meta)
+  return pairwise_transform.scale(x, settings.scale, settings.crop_size, offset, n, conf)
 end
 
 local function resampling(x, y, train_x, transformer, input_size, target_size)
-  print("cp#08")
+  ------ used
   local c = 1
   local shuffle = torch.randperm(#train_x)
   for t = 1, #train_x do
@@ -256,27 +189,6 @@ local function resampling(x, y, train_x, transformer, input_size, target_size)
     end
   end
   xlua.progress(#train_x, #train_x)
-end
-
-local function get_oracle_data(x, y, instance_loss, k, samples)
-  print("cp#09")
-  local index = torch.LongTensor(instance_loss:size(1))
-  local dummy = torch.Tensor(instance_loss:size(1))
-  torch.topk(dummy, index, instance_loss, k, 1, true)
-  print("MSE of all data: " ..instance_loss:mean() .. ", MSE of oracle data: " .. dummy:mean())
-  local shuffle = torch.randperm(k)
-  local x_s = x:size()
-  local y_s = y:size()
-  x_s[1] = samples
-  y_s[1] = samples
-  local oracle_x = torch.Tensor(table.unpack(torch.totable(x_s)))
-  local oracle_y = torch.Tensor(table.unpack(torch.totable(y_s)))
-
-  for i = 1, samples do
-    oracle_x[i]:copy(x[index[shuffle[i]]])
-    oracle_y[i]:copy(y[index[shuffle[i]]])
-  end
-  return oracle_x, oracle_y
 end
 
 local function remove_small_image(x)
@@ -305,13 +217,6 @@ local function remove_small_image(x)
   print(string.format("%d small images are removed", #x - #new_x))
   ------ print "0 small images are removed"
   return new_x
-end
-
-local function plot(train, valid)
-  print("cp#11")
-  gnuplot.plot({
-      {'training', torch.Tensor(train), '-'},
-      {'validation', torch.Tensor(valid), '-'}})
 end
 
 local function train()
@@ -367,84 +272,46 @@ local function train()
 
   local instance_loss = nil
 
-  for epoch = 1, settings.epoch do
+  ------ delete settings.epoch for no FOR
+  ------ used
+  model:training()
+  print("# " .. epoch)
+
+  print("## resampling")
+  ------ print "## resampling"
+
+  resampling(x, y, train_x, pairwise_func)
+
+  collectgarbage()
+  instance_loss = torch.Tensor(x:size(1)):zero()
+
+  ------ delete settings.inner_epoch for no FOR
+  ------ used
+  ------ settings.inner_epoch = 2(set)
+  model:training()
+  local train_score, il = minibatch_adam(model, criterion, eval_metric, x, y, adam_config)
+  instance_loss:copy(il)
+  print(train_score)
+  model:evaluate()
+  print("# validation")
+  local score = validate(model, criterion, eval_metric, valid_xy, adam_config.xBatchSize)
+  table.insert(hist_train, train_score.loss)
+  table.insert(hist_valid, score.loss)
+  if score.MSE < best_score then
     ------ used
-    model:training()
-    print("# " .. epoch)
-    if adam_config.learningRate then
-      print("cp#7")
-      print("learning rate: " .. adam_config.learningRate)
-      ------ non-existent on # 1 / existent on # 2
-      ------ on # 2 -> print "learning rate: 0.00018317702227433"
-    end
-    print("## resampling")
-    ------ print "## resampling"
-    if instance_loss then
-      print("cp#8")
-      ------ instance_loss = nil -> (maybe) not used
-      -- active learning
-      local oracle_k = math.min(x:size(1) * (settings.oracle_rate * (1 / (1 - settings.oracle_drop_rate))), x:size(1))
-      local oracle_n = math.min(x:size(1) * settings.oracle_rate, x:size(1))
-      if oracle_n > 0 then
-        print("cp#9")
-        local oracle_x, oracle_y = get_oracle_data(x, y, instance_loss, oracle_k, oracle_n)
-        resampling(x:narrow(1, oracle_x:size(1) + 1, x:size(1)-oracle_x:size(1)), y:narrow(1, oracle_x:size(1) + 1, x:size(1) - oracle_x:size(1)), train_x, pairwise_func)
-        x:narrow(1, 1, oracle_x:size(1)):copy(oracle_x)
-        y:narrow(1, 1, oracle_y:size(1)):copy(oracle_y)
-
-        local draw_n = math.floor(math.sqrt(oracle_x:size(1), 0.5))
-        if draw_n > 100 then
-          print("cp#10")
-          draw_n = 100
-        end
-        image.save(path.join(settings.model_dir, "oracle_x.png"),
-          image.toDisplayTensor({ input = oracle_x:narrow(1, 1, draw_n * draw_n), padding = 2, nrow = draw_n, min = 0, max = 1 }))
-      else
-        print("cp#11")
-        resampling(x, y, train_x, pairwise_func)
-      end
-    else
-      resampling(x, y, train_x, pairwise_func)
-    end
-
-    collectgarbage()
-    instance_loss = torch.Tensor(x:size(1)):zero()
-
-    for i = 1, settings.inner_epoch do
-      ------ used
-      ------ settings.inner_epoch = 2(set)
-      model:training()
-      local train_score, il = minibatch_adam(model, criterion, eval_metric, x, y, adam_config)
-      instance_loss:copy(il)
-      print(train_score)
-      model:evaluate()
-      print("# validation")
-      local score = validate(model, criterion, eval_metric, valid_xy, adam_config.xBatchSize)
-      table.insert(hist_train, train_score.loss)
-      table.insert(hist_valid, score.loss)
-      if score.MSE < best_score then
-        ------ used
-        local test_image = image_loader.load_float(settings.test) -- reload
-        best_score = score.MSE
-        print("* Best model is updated")
-        ------ settings.save_history = "fault"(default) -> unused
-        torch.save(settings.model_file, model:clearState(), "ascii")
-        ------ settings.method = "scale"(set) -> used
-        local log = path.join(settings.model_dir,
-          ("scale%.1f_best.png"):format(settings.scale))
-        save_test_scale(model, test_image, log)
-      end
-      print("Batch-wise PSNR: " .. score.PSNR .. ", loss: " .. score.loss .. ", MSE: " .. score.MSE .. ", Minimum MSE: " .. best_score)
-      ------ Batch-wise PSNR: 31.077134350816, loss: 0.00044024189632818, MSE: 0.00078034484351066, Minimum MSE: 0.00078034484351066
-      collectgarbage()
-    end
+    local test_image = image_loader.load_float(settings.test) -- reload
+    best_score = score.MSE
+    print("* Best model is updated")
+    ------ settings.save_history = "fault"(default) -> unused
+    torch.save(settings.model_file, model:clearState(), "ascii")
+    ------ settings.method = "scale"(set) -> used
+    local log = path.join(settings.model_dir,
+      ("scale%.1f_best.png"):format(settings.scale))
+    save_test_scale(model, test_image, log)
   end
-end
-
-if settings.gpu > 0 then
-  ------ unused
-  print("cp#16")
-  cutorch.setDevice(settings.gpu)
+  print("Batch-wise PSNR: " .. score.PSNR .. ", loss: " .. score.loss .. ", MSE: " .. score.MSE .. ", Minimum MSE: " .. best_score)
+  ------ Batch-wise PSNR: 31.077134350816, loss: 0.00044024189632818, MSE: 0.00078034484351066, Minimum MSE: 0.00078034484351066
+  collectgarbage()
 end
 
 ------ for convert_data
@@ -472,66 +339,10 @@ local function load_images(list)
   return x
 end
 
-
-
 torch.manualSeed(settings.seed)
 cutorch.manualSeed(settings.seed)
 print(settings)
------- sample result
---[[
-{
-  active_cropping_rate : 0.5
-  batch_size : 16
-  name : "user"
-  method : "scale"
-  max_size : 256
-  validation_crops : 200
-  plot : false
-  patches : 64
-  save_history : false
-  resize_blur_max : 1.05
-  gpu : -1
-  test : "images/miku_small.png"
-  downsampling_filters :
-    {
-      1 : "Box"
-      2 : "Lanczos"
-      3 : "Sinc"
-    }
-  resume : ""
-  crop_size : 48
-  random_color_noise_rate : 0
-  images : "./data/images.t7"
-  seed : 11
-  image_list : "./data/image_list.txt"
-  resize_blur_min : 0.95
-  nr_rate : 0.65
-  model_file : "models/my_model/scale2.0x_model.t7"
-  learning_rate_decay : 3e-07
-  model : "upconv_7"
-  active_cropping_tries : 10
-  use_transparent_png : false
-  oracle_drop_rate : 0.5
-  inner_epoch : 2
-  random_overlay_rate : 0
-  epoch : 2
-  data_dir : "./data"
-  learning_rate : 0.00025
-  random_half_rate : 0
-  scale : 2
-  jpeg_chroma_subsampling_rate : 0.5
-  max_training_image_size : -1
-  oracle_rate : 0.1
-  model_dir : "models/my_model"
-  style : "art"
-  random_unsharp_mask_rate : 0
-  color : "rgb"
-  noise_level : 1
-  backend : "cunn"
-  validation_rate : 0.05
-  thread : -1
-}
-]]
+
 local x = load_images(settings.image_list)
 torch.save(settings.images, x)
 

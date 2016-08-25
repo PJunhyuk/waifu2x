@@ -243,7 +243,7 @@ local pairwise_func = function(x, is_validation, n)
 end
 
 ------ for convert_data
-local csv = csvigo.load({path = image_list, verbose = false, mode = "raw"}) ------ csv : comma-separated values
+local csv = csvigo.load({path = settings.image_list, verbose = false, mode = "raw"}) ------ csv : comma-separated values
 local x = {}
 ------ #csv : 9999 ||| csv[1][1] : /CelebA/Img/img_align_celeba/Img/000755.jpg
 for i = 1, #csv do
@@ -261,7 +261,6 @@ for i = 1, #csv do
 end
 
 x = remove_small_image(x)
------- local function remove_small_image(x) in this file
 ------ print "0 small images are removed"
 local train_x, valid_x = split_data(x, math.max(math.floor(settings.validation_rate * #x), 1))
 local adam_config = {

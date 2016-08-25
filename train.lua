@@ -298,9 +298,9 @@ local function train()
   local hist_train = {}
   local hist_valid = {}
   local model
-  print("cp#1")
+  ------ used
   if settings.resume:len() > 0 then
-    print("cp#2")
+    ------ unused
     ------ on lib/settings.lua
     ------ resume = ""(default) -> unused
     model = torch.load(settings.resume, "ascii")
@@ -314,7 +314,7 @@ local function train()
   end
   local offset = reconstruct.offset_size(model)
   local pairwise_func = function(x, is_validation, n)
-    print("cp#3")
+    ------ used -> very often
     return transformer(model, x, is_validation, n, offset)
     ------ local function transformer(model, x, is_validation, n, offset) in this file
   end
@@ -333,7 +333,7 @@ local function train()
   if settings.color == "y" then
     ch = 1
   elseif settings.color == "rgb" then
-    print("cp#4")
+    ------ used
     ch = 3
   end
   local best_score = 1000.0
@@ -355,7 +355,7 @@ local function train()
     ch * (settings.crop_size - offset * 2) * (settings.crop_size - offset * 2)):zero()
 
   if reconstruct.has_resize(model) then
-    print("cp#5")
+    ------ used
     x = torch.Tensor(settings.patches * #train_x,
       ch, settings.crop_size / settings.scale, settings.crop_size / settings.scale)
   else
@@ -366,7 +366,7 @@ local function train()
   local instance_loss = nil
 
   for epoch = 1, settings.epoch do
-    print("cp#6")
+    ------ used
     model:training()
     print("# " .. epoch)
     if adam_config.learningRate then
@@ -409,7 +409,7 @@ local function train()
     instance_loss = torch.Tensor(x:size(1)):zero()
 
     for i = 1, settings.inner_epoch do
-      print("cp#12")
+      ------ used
       ------ settings.inner_epoch = 2(set)
       model:training()
       local train_score, il = minibatch_adam(model, criterion, eval_metric, x, y, adam_config)
@@ -425,12 +425,12 @@ local function train()
         plot(hist_train, hist_valid)
       end
       if score.MSE < best_score then
-        print("cp#14")
+        ------ used
         local test_image = image_loader.load_float(settings.test) -- reload
         best_score = score.MSE
         print("* Best model is updated")
         if settings.save_history then
-          print("cp#15")
+          ------ unused
           ------ settings.save_history = "fault"(default) -> unused
           torch.save(settings.model_file_best, model:clearState(), "ascii")
           torch.save(string.format(settings.model_file, epoch, i), model:clearState(), "ascii")
@@ -489,12 +489,14 @@ local function train()
         end
       end
       print("Batch-wise PSNR: " .. score.PSNR .. ", loss: " .. score.loss .. ", MSE: " .. score.MSE .. ", Minimum MSE: " .. best_score)
+      ------ Batch-wise PSNR: 31.077134350816, loss: 0.00044024189632818, MSE: 0.00078034484351066, Minimum MSE: 0.00078034484351066
       collectgarbage()
     end
   end
 end
 
 if settings.gpu > 0 then
+  ------ unused
   print("cp#16")
   cutorch.setDevice(settings.gpu)
 end

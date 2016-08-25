@@ -17,16 +17,19 @@ local pairwise_transform = require 'pairwise_transform'
 local image_loader = require 'image_loader'
 
 local function save_test_scale(model, rgb, file)
+  print("cp#00")
   local up = reconstruct.scale(model, settings.scale, rgb)
   image.save(file, up)
 end
 
 local function save_test_jpeg(model, rgb, file)
+  print("cp#01")
   local im, count = reconstruct.image(model, rgb)
   image.save(file, im)
 end
 
 local function save_test_user(model, rgb, file)
+  print("cp#02")
   if settings.scale == 1 then
     save_test_jpeg(model, rgb, file)
   else
@@ -35,6 +38,7 @@ local function save_test_user(model, rgb, file)
 end
 
 local function split_data(x, test_size)
+  print("cp#03")
   local index = torch.randperm(#x)
   local train_size = #x - test_size
   local train_x = {}
@@ -49,6 +53,7 @@ local function split_data(x, test_size)
 end
 
 local function make_validation_set(x, transformer, n, patches)
+  print("cp#04")
   n = n or 4
   local validation_patches = math.min(16, patches or 16)
   local data = {}
@@ -59,7 +64,9 @@ local function make_validation_set(x, transformer, n, patches)
         table.insert(data, {x = xy[j][1], y = xy[j][2]})
       end
     end
+    --[[
     xlua.progress(i, #x)
+    ]]
     collectgarbage()
   end
   local new_data = {}
@@ -72,6 +79,7 @@ local function make_validation_set(x, transformer, n, patches)
 end
 
 local function validate(model, criterion, eval_metric, data, batch_size)
+  print("cp#05")
   local loss = 0
   local mse = 0
   local loss_count = 0
@@ -94,15 +102,20 @@ local function validate(model, criterion, eval_metric, data, batch_size)
     mse = mse + eval_metric:forward(z, targets)
     loss_count = loss_count + 1
     if loss_count % 10 == 0 then
+      --[[
       xlua.progress(t, #data)
+      ]]
       collectgarbage()
     end
   end
+  --[[
   xlua.progress(#data, #data)
+  ]]
   return {loss = loss / loss_count, MSE = mse / loss_count, PSNR = 10 * math.log10(1 / (mse / loss_count))}
 end
 
 local function create_criterion(model)
+  print("cp#06")
   if reconstruct.is_rgb(model) then
     local offset = reconstruct.offset_size(model)
     local output_w = settings.crop_size - offset * 2
@@ -121,6 +134,7 @@ local function create_criterion(model)
 end
 
 local function transformer(model, x, is_validation, n, offset)
+  print("cp#07")
   local meta = {data = {}}
   local y = nil
   if type(x) == "table" and type(x[2]) == "table" then
@@ -218,10 +232,13 @@ local function transformer(model, x, is_validation, n, offset)
 end
 
 local function resampling(x, y, train_x, transformer, input_size, target_size)
+  print("cp#08")
   local c = 1
   local shuffle = torch.randperm(#train_x)
   for t = 1, #train_x do
+    --[[
     xlua.progress(t, #train_x)
+    ]]
     local xy = transformer(train_x[shuffle[t]], false, settings.patches)
     for i = 1, #xy do
       x[c]:copy(xy[i][1])
@@ -238,10 +255,13 @@ local function resampling(x, y, train_x, transformer, input_size, target_size)
       collectgarbage()
     end
   end
+  --[[
   xlua.progress(#train_x, #train_x)
+  ]]
 end
 
 local function get_oracle_data(x, y, instance_loss, k, samples)
+  print("cp#09")
   local index = torch.LongTensor(instance_loss:size(1))
   local dummy = torch.Tensor(instance_loss:size(1))
   torch.topk(dummy, index, instance_loss, k, 1, true)
@@ -262,6 +282,7 @@ local function get_oracle_data(x, y, instance_loss, k, samples)
 end
 
 local function remove_small_image(x)
+  print("cp#10")
   local new_x = {}
   for i = 1, #x do
     local xe, meta, x_s
@@ -289,6 +310,7 @@ local function remove_small_image(x)
 end
 
 local function plot(train, valid)
+  print("cp#11")
   gnuplot.plot({
       {'training', torch.Tensor(train), '-'},
       {'validation', torch.Tensor(valid), '-'}})
@@ -298,20 +320,15 @@ local function train()
   local hist_train = {}
   local hist_valid = {}
   local model
-  if settings.resume:len() > 0 then
-    ------ on lib/settings.lua
-    ------ resume = ""(default) -> unused
-    model = torch.load(settings.resume, "ascii")
-  else
-    ------ used
-    model = srcnn.create(settings.model, settings.backend, settings.color)
-    ------ function srcnn.create(model_name, backend, color) in lib/srcnn.lua
-    ------ settings.model = "upconv_7"
-    ------ settings.backend = "cunn"
-    ------ settings.color = "rgb"
-  end
+  ------ used
+  model = srcnn.create(settings.model, settings.backend, settings.color)
+  ------ function srcnn.create(model_name, backend, color) in lib/srcnn.lua
+  ------ settings.model = "upconv_7"
+  ------ settings.backend = "cunn"
+  ------ settings.color = "rgb"
   local offset = reconstruct.offset_size(model)
   local pairwise_func = function(x, is_validation, n)
+    ------ used -> very often
     return transformer(model, x, is_validation, n, offset)
     ------ local function transformer(model, x, is_validation, n, offset) in this file
   end
@@ -330,14 +347,13 @@ local function train()
   if settings.color == "y" then
     ch = 1
   elseif settings.color == "rgb" then
+    ------ used
     ch = 3
   end
   local best_score = 1000.0
   print("# make validation-set")
   ------ print "# make validation-set"
-  local valid_xy = make_validation_set(valid_x, pairwise_func,
-    settings.validation_crops,
-    settings.patches)
+  local valid_xy = make_validation_set(valid_x, pairwise_func, settings.validation_crops, settings.patches)
   valid_x = nil
 
   collectgarbage()
@@ -347,23 +363,18 @@ local function train()
   ------ print "load .. 9500"
 
   local x = nil
-  local y = torch.Tensor(settings.patches * #train_x,
-    ch * (settings.crop_size - offset * 2) * (settings.crop_size - offset * 2)):zero()
+  local y = torch.Tensor(settings.patches * #train_x, ch * (settings.crop_size - offset * 2) * (settings.crop_size - offset * 2)):zero()
 
-  if reconstruct.has_resize(model) then
-    x = torch.Tensor(settings.patches * #train_x,
-      ch, settings.crop_size / settings.scale, settings.crop_size / settings.scale)
-  else
-    x = torch.Tensor(settings.patches * #train_x,
-      ch, settings.crop_size, settings.crop_size)
-  end
+  x = torch.Tensor(settings.patches * #train_x, ch, settings.crop_size / settings.scale, settings.crop_size / settings.scale)
 
   local instance_loss = nil
 
   for epoch = 1, settings.epoch do
+    ------ used
     model:training()
     print("# " .. epoch)
     if adam_config.learningRate then
+      print("cp#7")
       print("learning rate: " .. adam_config.learningRate)
       ------ non-existent on # 1 / existent on # 2
       ------ on # 2 -> print "learning rate: 0.00018317702227433"
@@ -371,11 +382,13 @@ local function train()
     print("## resampling")
     ------ print "## resampling"
     if instance_loss then
+      print("cp#8")
       ------ instance_loss = nil -> (maybe) not used
       -- active learning
       local oracle_k = math.min(x:size(1) * (settings.oracle_rate * (1 / (1 - settings.oracle_drop_rate))), x:size(1))
       local oracle_n = math.min(x:size(1) * settings.oracle_rate, x:size(1))
       if oracle_n > 0 then
+        print("cp#9")
         local oracle_x, oracle_y = get_oracle_data(x, y, instance_loss, oracle_k, oracle_n)
         resampling(x:narrow(1, oracle_x:size(1) + 1, x:size(1)-oracle_x:size(1)), y:narrow(1, oracle_x:size(1) + 1, x:size(1) - oracle_x:size(1)), train_x, pairwise_func)
         x:narrow(1, 1, oracle_x:size(1)):copy(oracle_x)
@@ -383,11 +396,13 @@ local function train()
 
         local draw_n = math.floor(math.sqrt(oracle_x:size(1), 0.5))
         if draw_n > 100 then
+          print("cp#10")
           draw_n = 100
         end
         image.save(path.join(settings.model_dir, "oracle_x.png"),
           image.toDisplayTensor({ input = oracle_x:narrow(1, 1, draw_n * draw_n), padding = 2, nrow = draw_n, min = 0, max = 1 }))
       else
+        print("cp#11")
         resampling(x, y, train_x, pairwise_func)
       end
     else
@@ -398,6 +413,7 @@ local function train()
     instance_loss = torch.Tensor(x:size(1)):zero()
 
     for i = 1, settings.inner_epoch do
+      ------ used
       ------ settings.inner_epoch = 2(set)
       model:training()
       local train_score, il = minibatch_adam(model, criterion, eval_metric, x, y, adam_config)
@@ -408,78 +424,28 @@ local function train()
       local score = validate(model, criterion, eval_metric, valid_xy, adam_config.xBatchSize)
       table.insert(hist_train, train_score.loss)
       table.insert(hist_valid, score.loss)
-      if settings.plot then
-        plot(hist_train, hist_valid)
-      end
       if score.MSE < best_score then
+        ------ used
         local test_image = image_loader.load_float(settings.test) -- reload
         best_score = score.MSE
         print("* Best model is updated")
-        if settings.save_history then
-          ------ settings.save_history = "fault"(default) -> unused
-          torch.save(settings.model_file_best, model:clearState(), "ascii")
-          torch.save(string.format(settings.model_file, epoch, i), model:clearState(), "ascii")
-          if settings.method == "noise" then
-            ------ settings.method = "scale"(set) -> not used
-            local log = path.join(settings.model_dir,
-              ("noise%d_best.%d-%d.png"):format(settings.noise_level,
-                epoch, i))
-            save_test_jpeg(model, test_image, log)
-          elseif settings.method == "scale" then
-            ------ settings.method = "scale"(set) -> used
-            local log = path.join(settings.model_dir,
-              ("scale%.1f_best.%d-%d.png"):format(settings.scale,
-                epoch, i))
-            save_test_scale(model, test_image, log)
-          elseif settings.method == "noise_scale" then
-            ------ settings.method = "scale"(set) -> not used
-            local log = path.join(settings.model_dir,
-              ("noise%d_scale%.1f_best.%d-%d.png"):format(settings.noise_level,
-                settings.scale,
-                epoch, i))
-            save_test_scale(model, test_image, log)
-          elseif settings.method == "user" then
-            ------ settings.method = "scale"(set) -> not used
-            local log = path.join(settings.model_dir,
-              ("%s_best.%d-%d.png"):format(settings.name,
-                epoch, i))
-            save_test_user(model, test_image, log)
-          end
-        else
-          torch.save(settings.model_file, model:clearState(), "ascii")
-          if settings.method == "noise" then
-            ------ settings.method = "scale"(set) -> not used
-            local log = path.join(settings.model_dir,
-              ("noise%d_best.png"):format(settings.noise_level))
-            save_test_jpeg(model, test_image, log)
-
-          elseif settings.method == "scale" then
-            ------ settings.method = "scale"(set) -> used
-            local log = path.join(settings.model_dir,
-              ("scale%.1f_best.png"):format(settings.scale))
-            save_test_scale(model, test_image, log)
-
-          elseif settings.method == "noise_scale" then
-            ------ settings.method = "scale"(set) -> not used
-            local log = path.join(settings.model_dir,
-              ("noise%d_scale%.1f_best.png"):format(settings.noise_level,
-                settings.scale))
-            save_test_scale(model, test_image, log)
-          elseif settings.method == "user" then
-            ------ settings.method = "scale"(set) -> not used
-            local log = path.join(settings.model_dir,
-              ("%s_best.png"):format(settings.name))
-            save_test_user(model, test_image, log)
-          end
-        end
+        ------ settings.save_history = "fault"(default) -> unused
+        torch.save(settings.model_file, model:clearState(), "ascii")
+        ------ settings.method = "scale"(set) -> used
+        local log = path.join(settings.model_dir,
+          ("scale%.1f_best.png"):format(settings.scale))
+        save_test_scale(model, test_image, log)
       end
       print("Batch-wise PSNR: " .. score.PSNR .. ", loss: " .. score.loss .. ", MSE: " .. score.MSE .. ", Minimum MSE: " .. best_score)
+      ------ Batch-wise PSNR: 31.077134350816, loss: 0.00044024189632818, MSE: 0.00078034484351066, Minimum MSE: 0.00078034484351066
       collectgarbage()
     end
   end
 end
 
 if settings.gpu > 0 then
+  ------ unused
+  print("cp#16")
   cutorch.setDevice(settings.gpu)
 end
 

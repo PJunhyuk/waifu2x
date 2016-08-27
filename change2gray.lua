@@ -1,5 +1,5 @@
 local Image = require 'image'
 
-local img = Image.load('./output.png', 3, 'byte')
+local img = Image.load('./miku_small.png', 3, 'byte')
 img = Image.rgb2y(img)
-Image.savePNG('./output-gray.png', img)
+Image.savePNG('./input-gray.png', img)
